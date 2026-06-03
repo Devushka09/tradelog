@@ -1,0 +1,2421 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Торговый Журнал</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Unbounded:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f0f2f5;
+    --surface: #ffffff;
+    --surface2: #f5f7fa;
+    --surface3: #eaecf0;
+    --border: #dde1e8;
+    --border2: #c5ccd8;
+    --accent: #0a7c55;
+    --accent2: #0072b8;
+    --accent3: #c47d00;
+    --red: #d93025;
+    --green: #1a7f4b;
+    --muted: #9aa3b0;
+    --text: #1a202c;
+    --text2: #4a5568;
+    --text3: #8896a6;
+    --long: #1a7f4b;
+    --short: #d93025;
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-head: 'Unbounded', sans-serif;
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    min-height: 100vh;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0,114,184,0.05) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 80% 80%, rgba(10,124,85,0.04) 0%, transparent 50%);
+  }
+
+  /* === LAYOUT === */
+  .header {
+    padding: 24px 32px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    position: sticky;
+    top: 0;
+    background: rgba(240,242,245,0.92);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+  }
+  .logo {
+    font-family: var(--font-head);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .header-stats {
+    display: flex;
+    gap: 24px;
+    margin-left: auto;
+    align-items: center;
+  }
+  .stat-pill {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+  }
+  .stat-pill .label { font-size: 9px; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; }
+  .stat-pill .value { font-size: 15px; font-weight: 600; }
+  .value.pos { color: var(--green); }
+  .value.neg { color: var(--red); }
+  .value.neutral { color: var(--text); }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    padding: 16px 32px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .tab {
+    padding: 10px 20px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: 1px solid transparent;
+    border-bottom: none;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    color: var(--text3);
+    background: transparent;
+    transition: all 0.15s;
+    position: relative;
+    top: 1px;
+  }
+  .tab:hover { color: var(--text2); border-color: var(--border); background: var(--surface); }
+  .tab.active {
+    color: var(--accent);
+    background: var(--surface);
+    border-color: var(--border);
+    border-bottom-color: var(--surface);
+  }
+
+  .content { padding: 28px 32px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* === BUTTONS === */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #0b9466; transform: translateY(-1px); }
+  .btn-secondary { background: var(--surface2); color: var(--text2); border: 1px solid var(--border2); }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-danger { background: rgba(255,77,106,0.1); color: var(--red); border: 1px solid rgba(255,77,106,0.25); }
+  .btn-danger:hover { background: rgba(255,77,106,0.2); }
+  .btn-sm { padding: 5px 10px; font-size: 10px; }
+  .btn-icon { padding: 6px 8px; }
+
+  /* === FORM === */
+  .trade-form {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+    max-width: 960px;
+    margin-bottom: 32px;
+  }
+  .form-title {
+    font-family: var(--font-head);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 1px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .form-title::before {
+    content: '';
+    display: inline-block;
+    width: 3px;
+    height: 16px;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+
+  .form-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .form-grid.col-2 { grid-template-columns: repeat(2, 1fr); }
+  .form-grid.col-3 { grid-template-columns: repeat(3, 1fr); }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group.span-2 { grid-column: span 2; }
+  .form-group.span-4 { grid-column: span 4; }
+
+  label {
+    font-size: 9px;
+    color: var(--text3);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  input, select, textarea {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 8px 10px;
+    outline: none;
+    transition: border-color 0.15s;
+    width: 100%;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  select option { background: var(--surface2); }
+  textarea { resize: vertical; min-height: 60px; }
+  input::placeholder { color: var(--text3); }
+
+  .direction-toggle {
+    display: flex;
+    gap: 6px;
+  }
+  .dir-btn {
+    flex: 1;
+    padding: 8px;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    border: 1px solid var(--border2);
+    background: var(--surface2);
+    color: var(--text3);
+    transition: all 0.15s;
+  }
+  .dir-btn.long.active { background: rgba(26,127,75,0.12); border-color: var(--long); color: var(--long); }
+  .dir-btn.short.active { background: rgba(217,48,37,0.12); border-color: var(--short); color: var(--short); }
+  .dir-btn:hover { border-color: var(--border2); color: var(--text2); }
+
+  /* Section divider */
+  .section-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 22px 0 16px;
+  }
+  .section-divider span {
+    font-size: 9px;
+    color: var(--text3);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    font-weight: 600;
+  }
+  .section-divider::before, .section-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Multi-entry rows */
+  .rows-container { display: flex; flex-direction: column; gap: 8px; }
+  .entry-row, .tp-row, .exit-row {
+    display: grid;
+    gap: 10px;
+    align-items: end;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+  }
+  .entry-row { grid-template-columns: auto 1fr 1fr 1fr 1fr 36px; }
+  .tp-row { grid-template-columns: auto 1fr 1fr 1fr 1fr 36px; }
+  .exit-row { grid-template-columns: auto 1fr 1fr 1fr 1fr 1fr 36px; }
+  .row-num {
+    font-size: 10px;
+    color: var(--text3);
+    font-weight: 700;
+    padding-bottom: 8px;
+    min-width: 18px;
+    text-align: center;
+  }
+  .row-calc {
+    font-size: 11px;
+    color: var(--text2);
+    padding-bottom: 8px;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .row-calc.pos { color: var(--green); }
+  .row-calc.neg { color: var(--red); }
+
+  .add-row-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text3);
+    background: transparent;
+    border: 1px dashed var(--border2);
+    cursor: pointer;
+    transition: all 0.15s;
+    width: 100%;
+    justify-content: center;
+    letter-spacing: 0.5px;
+    margin-top: 4px;
+  }
+  .add-row-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* === Live P&L block === */
+  .pnl-preview {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px 18px;
+    display: flex;
+    gap: 32px;
+    align-items: center;
+    margin-top: 6px;
+  }
+  .pnl-item { display: flex; flex-direction: column; gap: 3px; }
+  .pnl-item .pl { font-size: 9px; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; }
+  .pnl-item .pv { font-size: 16px; font-weight: 700; }
+
+  /* Form actions */
+  .form-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* === TRADES LIST === */
+  .trades-toolbar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    align-items: center;
+  }
+  .filter-pills { display: flex; gap: 6px; margin-left: auto; }
+  .filter-pill {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text3);
+    font-family: var(--font-mono);
+    transition: all 0.15s;
+  }
+  .filter-pill:hover { border-color: var(--border2); color: var(--text2); }
+  .filter-pill.active { border-color: var(--accent2); color: var(--accent2); background: rgba(0,201,255,0.07); }
+
+  /* Trade card */
+  .trade-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+  .trade-card:hover { border-color: var(--border2); }
+  .trade-card.profit { border-left: 3px solid var(--green); }
+  .trade-card.loss { border-left: 3px solid var(--red); }
+  .trade-card.open { border-left: 3px solid var(--accent3); }
+  .trade-card:hover { border-color: var(--border2); box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+
+  .card-header {
+    display: grid;
+    grid-template-columns: 60px 1fr auto auto auto auto auto 60px;
+    gap: 14px;
+    padding: 14px 18px;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+  }
+  .card-header:hover { background: rgba(255,255,255,0.01); }
+
+  .trade-num { font-size: 10px; color: var(--text3); font-weight: 700; }
+  .trade-coin { font-family: var(--font-head); font-size: 14px; font-weight: 700; color: var(--text); }
+  .trade-date { font-size: 10px; color: var(--text3); }
+  .trade-dir {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 3px 9px;
+    border-radius: 4px;
+  }
+  .trade-dir.long { background: rgba(26,127,75,0.1); color: var(--long); }
+  .trade-dir.short { background: rgba(217,48,37,0.1); color: var(--short); }
+  .trade-leverage { font-size: 10px; color: var(--text3); }
+  .trade-strategy { font-size: 10px; color: var(--accent2); }
+  .trade-pnl { font-size: 15px; font-weight: 700; text-align: right; }
+  .trade-pnl.pos { color: var(--green); }
+  .trade-pnl.neg { color: var(--red); }
+  .trade-pnl.open { color: var(--accent3); }
+  .expand-icon { font-size: 12px; color: var(--text3); transition: transform 0.2s; text-align: right; }
+  .trade-card.expanded .expand-icon { transform: rotate(180deg); }
+
+  /* Card detail */
+  .card-detail {
+    display: none;
+    padding: 0 18px 18px;
+    border-top: 1px solid var(--border);
+  }
+  .trade-card.expanded .card-detail { display: block; }
+
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px;
+    margin-top: 16px;
+  }
+  .detail-section {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+  }
+  .detail-section-title {
+    font-size: 9px;
+    color: var(--text3);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+  .detail-rows { display: flex; flex-direction: column; gap: 6px; }
+  .detail-row { display: flex; justify-content: space-between; align-items: center; }
+  .detail-row .dk { font-size: 10px; color: var(--text3); }
+  .detail-row .dv { font-size: 11px; color: var(--text); font-weight: 500; }
+  .detail-row .dv.pos { color: var(--green); }
+  .detail-row .dv.neg { color: var(--red); }
+
+  .sub-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+  .sub-table th { font-size: 9px; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; padding: 0 6px 6px; text-align: right; font-weight: 600; }
+  .sub-table th:first-child { text-align: left; }
+  .sub-table td { font-size: 11px; padding: 5px 6px; border-top: 1px solid var(--border); text-align: right; }
+  .sub-table td:first-child { text-align: left; color: var(--text3); }
+
+  .detail-comment {
+    margin-top: 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.6;
+  }
+  .card-actions { display: flex; gap: 8px; margin-top: 14px; }
+
+  .card-comment {
+    padding: 7px 18px 8px;
+    font-size: 11px;
+    color: var(--text2);
+    line-height: 1.5;
+    border-top: 1px solid var(--border);
+    background: var(--surface2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+  }
+  .trade-card.expanded .card-comment {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+  }
+
+  /* === STATS PANEL === */
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+  }
+  .stat-card .sc-label { font-size: 9px; color: var(--text3); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 8px; }
+  .stat-card .sc-value { font-family: var(--font-head); font-size: 22px; font-weight: 700; }
+  .stat-card .sc-sub { font-size: 10px; color: var(--text3); margin-top: 4px; }
+  .stat-card .sc-value.pos { color: var(--green); }
+  .stat-card .sc-value.neg { color: var(--red); }
+  .stat-card .sc-value.neutral { color: var(--text); }
+  .stat-card .sc-value.warn { color: var(--accent3); }
+
+  .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 24px; }
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+  }
+  .chart-card h3 { font-size: 10px; color: var(--text3); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 16px; }
+
+  /* Bar charts */
+  .bar-chart { display: flex; flex-direction: column; gap: 8px; }
+  .bar-item { display: flex; gap: 10px; align-items: center; }
+  .bar-item .bar-label { font-size: 10px; color: var(--text2); width: 90px; text-align: right; flex-shrink: 0; }
+  .bar-track { flex: 1; height: 14px; background: var(--surface2); border-radius: 3px; overflow: hidden; position: relative; }
+  .bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
+  .bar-fill.pos { background: linear-gradient(90deg, rgba(26,127,75,0.3), rgba(26,127,75,0.7)); }
+  .bar-fill.neg { background: linear-gradient(90deg, rgba(217,48,37,0.3), rgba(217,48,37,0.7)); }
+  .bar-item .bar-val { font-size: 10px; color: var(--text3); width: 50px; text-align: right; }
+
+  /* Equity curve */
+  .equity-canvas { width: 100%; height: 140px; }
+
+  /* Errors table */
+  .errors-table { width: 100%; border-collapse: collapse; }
+  .errors-table th { font-size: 9px; color: var(--text3); letter-spacing: 1.5px; text-transform: uppercase; padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); font-weight: 600; }
+  .errors-table td { padding: 10px 12px; font-size: 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .errors-table tr:hover td { background: var(--surface2); }
+  .errors-table .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .tag-entry { background: rgba(0,114,184,0.1); color: var(--accent2); }
+  .tag-exit { background: rgba(196,125,0,0.1); color: var(--accent3); }
+  .tag-stop { background: rgba(217,48,37,0.1); color: var(--red); }
+  .tag-risk { background: rgba(26,127,75,0.1); color: var(--green); }
+  .tag-psych { background: rgba(120,80,200,0.1); color: #7050c8; }
+
+  /* === EMPTY STATE === */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text3);
+  }
+  .empty-state .icon { font-size: 40px; margin-bottom: 14px; opacity: 0.5; }
+  .empty-state p { font-size: 12px; line-height: 1.8; }
+
+  /* === NOTIFICATIONS === */
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    padding: 12px 20px;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    z-index: 1000;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.25s;
+    pointer-events: none;
+  }
+  #toast.show { opacity: 1; transform: translateY(0); }
+  #toast.success { border-color: var(--green); color: var(--green); }
+  #toast.error { border-color: var(--red); color: var(--red); }
+
+  /* === MODAL === */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 200;
+    backdrop-filter: blur(4px);
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 28px;
+    max-width: 680px;
+    width: 90%;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+  .modal-title {
+    font-family: var(--font-head);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 20px;
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  .delete-confirm { font-size: 13px; color: var(--text2); margin-bottom: 20px; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+  /* Risk meter */
+  .risk-meter { margin-top: 4px; }
+  .risk-bar { height: 4px; background: var(--surface3); border-radius: 2px; overflow: hidden; }
+  .risk-fill { height: 100%; border-radius: 2px; transition: all 0.3s; }
+
+  .rr-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .rr-badge.good { background: rgba(54,247,163,0.1); color: var(--green); }
+  .rr-badge.ok { background: rgba(247,201,72,0.1); color: var(--accent3); }
+  .rr-badge.bad { background: rgba(255,77,106,0.1); color: var(--red); }
+
+  /* Settings */
+  .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+  .settings-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px;
+  }
+  .settings-section h3 {
+    font-family: var(--font-head);
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 1px;
+    margin-bottom: 18px;
+  }
+  .settings-row { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+
+  /* === SYNC === */
+  .sync-section { border-color: var(--accent2) !important; }
+  .sync-status-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    color: var(--text2);
+  }
+  .sync-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--text3);
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+  .sync-dot.ok { background: var(--green); box-shadow: 0 0 6px rgba(26,127,75,0.4); }
+  .sync-dot.error { background: var(--red); }
+  .sync-dot.loading {
+    background: var(--accent3);
+    animation: pulse-dot 0.8s ease-in-out infinite alternate;
+  }
+  @keyframes pulse-dot { from { opacity: 0.4; } to { opacity: 1; } }
+
+  .sync-instructions {
+    display: flex; flex-direction: column; gap: 8px;
+    margin-top: 14px; padding: 4px 0;
+  }
+  .instr-step {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 9px 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 11px; color: var(--text2); line-height: 1.6;
+  }
+  .instr-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--accent2); color: #fff;
+    font-size: 10px; font-weight: 700; flex-shrink: 0; margin-top: 1px;
+  }
+  .warn-step { background: rgba(196,125,0,0.06); border-color: var(--accent3); }
+  .warn-num { background: var(--accent3); }
+  .instr-step code {
+    background: var(--surface3); padding: 1px 5px;
+    border-radius: 3px; font-family: var(--font-mono); font-size: 10px;
+  }
+
+  .strategy-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    transition: border-color 0.15s;
+  }
+  .strategy-item:hover { border-color: var(--border2); }
+  .strategy-item .s-color {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  }
+  .strategy-item .s-name {
+    flex: 1; font-size: 12px; color: var(--text);
+    border: none; background: transparent; outline: none;
+    font-family: var(--font-mono);
+  }
+  .strategy-item .s-name:focus {
+    background: var(--surface); border-radius: 3px; padding: 2px 6px; margin: -2px -6px;
+  }
+  .strategy-item .s-desc {
+    flex: 2; font-size: 11px; color: var(--text3);
+    border: none; background: transparent; outline: none;
+    font-family: var(--font-mono);
+  }
+  .strategy-item .s-desc:focus {
+    background: var(--surface); border-radius: 3px; padding: 2px 6px; margin: -2px -6px;
+  }
+  .strategy-item .s-desc::placeholder { color: var(--text3); opacity: 0.6; }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo">⬡ TradeLog</div>
+  <div class="header-stats">
+    <div class="stat-pill">
+      <span class="label">Депозит</span>
+      <span class="value neutral" id="hdr-deposit">$0</span>
+    </div>
+    <div class="stat-pill">
+      <span class="label">P&L всего</span>
+      <span class="value neutral" id="hdr-pnl">$0</span>
+    </div>
+    <div class="stat-pill">
+      <span class="label">Win Rate</span>
+      <span class="value neutral" id="hdr-wr">0%</span>
+    </div>
+    <div class="stat-pill">
+      <span class="label">Сделок</span>
+      <span class="value neutral" id="hdr-count">0</span>
+    </div>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab active" onclick="showTab('tab-journal')">📒 Журнал</button>
+  <button class="tab" onclick="showTab('tab-new')">＋ Новая сделка</button>
+  <button class="tab" onclick="showTab('tab-stats')">📊 Статистика</button>
+  <button class="tab" onclick="showTab('tab-errors')">⚠️ Ошибки & Уроки</button>
+  <button class="tab" onclick="showTab('tab-settings')">⚙️ Настройки</button>
+</div>
+
+<div class="content">
+
+  <!-- ===== JOURNAL TAB ===== -->
+  <div class="panel active" id="tab-journal">
+    <div class="trades-toolbar">
+      <span style="font-size:11px;color:var(--text3)">Все сделки</span>
+      <div class="filter-pills">
+        <button class="filter-pill active" onclick="filterTrades('all',this)">Все</button>
+        <button class="filter-pill" onclick="filterTrades('open',this)">Открытые</button>
+        <button class="filter-pill" onclick="filterTrades('profit',this)">Прибыльные</button>
+        <button class="filter-pill" onclick="filterTrades('loss',this)">Убыточные</button>
+        <button class="filter-pill" onclick="filterTrades('long',this)">Лонг</button>
+        <button class="filter-pill" onclick="filterTrades('short',this)">Шорт</button>
+      </div>
+    </div>
+    <div id="trades-list"></div>
+  </div>
+
+  <!-- ===== NEW TRADE TAB ===== -->
+  <div class="panel" id="tab-new">
+    <div class="trade-form" id="trade-form-container">
+      <div class="form-title" id="form-title-text">Новая сделка</div>
+
+      <!-- Base info -->
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Монета / Тикер</label>
+          <input type="text" id="f-coin" placeholder="BTC, ETH, SOL...">
+        </div>
+        <div class="form-group">
+          <label>Направление</label>
+          <div class="direction-toggle">
+            <button class="dir-btn long active" onclick="setDirection('long',this)">ЛОНГ</button>
+            <button class="dir-btn short" onclick="setDirection('short',this)">ШОРТ</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Дата открытия</label>
+          <input type="date" id="f-date-open">
+        </div>
+        <div class="form-group">
+          <label>Время открытия</label>
+          <input type="time" id="f-time-open">
+        </div>
+        <div class="form-group">
+          <label>Плечо (x)</label>
+          <input type="number" id="f-leverage" placeholder="5" value="5">
+        </div>
+        <div class="form-group">
+          <label>Стратегия / Сетап</label>
+          <input type="text" id="f-strategy" list="strategy-list" placeholder="По индикаторам...">
+          <datalist id="strategy-list"></datalist>
+        </div>
+        <div class="form-group">
+          <label>Биржа</label>
+          <select id="f-exchange">
+            <option>OKX</option>
+            <option>MEXC</option>
+            <option>Bybit</option>
+            <option>Binance</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Таймфрейм</label>
+          <select id="f-tf">
+            <option>1m</option><option>5m</option><option>15m</option>
+            <option>30m</option><option selected>1H</option><option>4H</option>
+            <option>1D</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- ENTRIES -->
+      <div class="section-divider"><span>📥 Входы в позицию</span></div>
+      <div class="rows-container" id="entries-container"></div>
+      <button class="add-row-btn" onclick="addEntryRow()">+ добавить вход</button>
+
+      <!-- STOP LOSS -->
+      <div class="section-divider"><span>🛑 Стоп-лосс</span></div>
+      <div class="form-grid col-3">
+        <div class="form-group">
+          <label>Стоп-лосс (цена)</label>
+          <input type="number" id="f-sl" step="any" placeholder="Цена стопа" oninput="recalcPnl()">
+        </div>
+        <div class="form-group">
+          <label>Тип стопа</label>
+          <select id="f-sl-type">
+            <option>Фиксированный</option>
+            <option>Трейлинг</option>
+            <option>Безубыток после ТП1</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Риск (авто)</label>
+          <div id="risk-display" style="padding:8px 10px;background:var(--surface3);border-radius:6px;font-size:12px;color:var(--text3);">—</div>
+        </div>
+      </div>
+
+      <!-- TAKE PROFITS -->
+      <div class="section-divider"><span>🎯 Тейк-профиты</span></div>
+      <div class="rows-container" id="tps-container"></div>
+      <button class="add-row-btn" onclick="addTpRow()">+ добавить тейк</button>
+
+      <!-- EXITS (for closed trades) -->
+      <div class="section-divider"><span>📤 Фактические выходы</span></div>
+      <div class="form-grid col-2" style="margin-bottom:14px">
+        <div class="form-group">
+          <label>Статус сделки</label>
+          <select id="f-status" onchange="toggleExits()">
+            <option value="open">Открыта</option>
+            <option value="closed">Закрыта</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Дата закрытия</label>
+          <input type="date" id="f-date-close">
+        </div>
+      </div>
+      <div id="exits-section">
+        <div class="rows-container" id="exits-container"></div>
+        <button class="add-row-btn" onclick="addExitRow()">+ добавить выход</button>
+      </div>
+
+      <!-- P&L preview -->
+      <div class="section-divider"><span>💰 Итог сделки</span></div>
+      <div class="pnl-preview">
+        <div class="pnl-item">
+          <span class="pl">P&L (USD)</span>
+          <span class="pv neutral" id="pv-pnl">$0.00</span>
+        </div>
+        <div class="pnl-item">
+          <span class="pl">P&L (%)</span>
+          <span class="pv neutral" id="pv-pnl-pct">0.00%</span>
+        </div>
+        <div class="pnl-item">
+          <span class="pl">Ср. вход</span>
+          <span class="pv neutral" id="pv-avg-entry">—</span>
+        </div>
+        <div class="pnl-item">
+          <span class="pl">Ср. выход</span>
+          <span class="pv neutral" id="pv-avg-exit">—</span>
+        </div>
+        <div class="pnl-item">
+          <span class="pl">R:R факт</span>
+          <span class="pv neutral" id="pv-rr">—</span>
+        </div>
+        <div class="pnl-item">
+          <span class="pl">Комиссии</span>
+          <span class="pv neutral" id="pv-comm">$0.00</span>
+        </div>
+      </div>
+
+      <!-- Assessment -->
+      <div class="section-divider"><span>🧠 Оценка и психология</span></div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>План соблюдён?</label>
+          <select id="f-plan">
+            <option value="yes">Да ✓</option>
+            <option value="partial">Частично ⚠</option>
+            <option value="no">Нет ✗</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Эмоции (1–5)</label>
+          <input type="number" id="f-emotion" min="1" max="5" placeholder="3">
+        </div>
+        <div class="form-group">
+          <label>Тип ошибки</label>
+          <select id="f-error-type">
+            <option value="">— нет ошибки —</option>
+            <option>Вход без сигнала</option>
+            <option>Нет стопа</option>
+            <option>Двигал стоп в убыток</option>
+            <option>Увеличил объём после убытка</option>
+            <option>FOMO</option>
+            <option>Усреднение убытка</option>
+            <option>Нарушил план</option>
+            <option>Вышел слишком рано</option>
+            <option>Вышел слишком поздно</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Скриншот (ссылка)</label>
+          <input type="text" id="f-screenshot" placeholder="https://...">
+        </div>
+        <div class="form-group span-4">
+          <label>Комментарий / Разбор</label>
+          <textarea id="f-comment" placeholder="Что произошло, почему так открылся, что сделаю иначе..."></textarea>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn btn-secondary" onclick="resetForm()">Очистить</button>
+        <button class="btn btn-primary" onclick="saveTrade()">Сохранить сделку →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== STATS TAB ===== -->
+  <div class="panel" id="tab-stats">
+    <div class="stats-grid" id="stats-grid"></div>
+    <div class="chart-row">
+      <div class="chart-card">
+        <h3>Equity Curve</h3>
+        <canvas class="equity-canvas" id="equity-canvas"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>P&L по стратегиям</h3>
+        <div class="bar-chart" id="strategy-chart"></div>
+      </div>
+    </div>
+    <div class="chart-row">
+      <div class="chart-card">
+        <h3>P&L по дням недели</h3>
+        <div class="bar-chart" id="weekday-chart"></div>
+      </div>
+      <div class="chart-card">
+        <h3>Распределение по монетам</h3>
+        <div class="bar-chart" id="coin-chart"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ERRORS TAB ===== -->
+  <div class="panel" id="tab-errors">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <span style="font-size:11px;color:var(--text3)">Журнал ошибок и уроков</span>
+      <button class="btn btn-secondary" onclick="showErrorModal()">+ Добавить запись</button>
+    </div>
+    <table class="errors-table" id="errors-table">
+      <thead>
+        <tr>
+          <th>Дата</th>
+          <th>Сделка №</th>
+          <th>Тип ошибки</th>
+          <th>Что произошло</th>
+          <th>Правило на будущее</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="errors-body"></tbody>
+    </table>
+  </div>
+
+  <!-- ===== SETTINGS TAB ===== -->
+  <div class="panel" id="tab-settings">
+    <div class="settings-grid">
+      <div class="settings-section">
+        <h3>Параметры счёта</h3>
+        <div class="settings-row">
+          <label>Имя трейдера</label>
+          <input type="text" id="s-name" placeholder="Ваше имя">
+        </div>
+        <div class="settings-row">
+          <label>Размер депозита (USD)</label>
+          <input type="number" id="s-deposit" placeholder="1000">
+        </div>
+        <div class="settings-row">
+          <label>Дата начала ведения</label>
+          <input type="date" id="s-start-date">
+        </div>
+      </div>
+      <div class="settings-section">
+        <h3>Риск-менеджмент</h3>
+        <div class="settings-row">
+          <label>Макс. риск на сделку (%)</label>
+          <input type="number" id="s-max-risk" placeholder="1" step="0.1">
+        </div>
+        <div class="settings-row">
+          <label>Целевой R:R</label>
+          <input type="number" id="s-rr" placeholder="2" step="0.5">
+        </div>
+        <div class="settings-row">
+          <label>Макс. убыток за день (%)</label>
+          <input type="number" id="s-max-day" placeholder="3" step="0.5">
+        </div>
+        <div class="settings-row">
+          <label>Макс. убыток за месяц (%)</label>
+          <input type="number" id="s-max-month" placeholder="8" step="1">
+        </div>
+        <div class="settings-row">
+          <label>Комиссия биржи (%)</label>
+          <input type="number" id="s-fee" placeholder="0.1" step="0.01">
+        </div>
+      </div>
+    </div>
+
+    <!-- STRATEGIES SECTION -->
+    <div class="settings-section" style="margin-top:20px">
+      <h3>Мои стратегии / Сетапы</h3>
+      <p style="font-size:11px;color:var(--text3);margin-bottom:16px;line-height:1.6">
+        Список стратегий появляется в выпадающем списке при создании сделки. Добавляй, редактируй и удаляй свои сетапы здесь.
+      </p>
+      <div id="strategies-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="s-new-strategy" placeholder="Название стратегии..." style="max-width:300px" onkeydown="if(event.key==='Enter')addStrategy()">
+        <button class="btn btn-primary" onclick="addStrategy()">+ Добавить</button>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="saveSettings()">Сохранить настройки</button>
+      <button class="btn btn-secondary" onclick="exportData()">Экспорт JSON</button>
+      <button class="btn btn-secondary" onclick="importData()">Импорт JSON</button>
+      <button class="btn btn-danger" onclick="clearAll()">Очистить все данные</button>
+    </div>
+
+    <!-- GITHUB GIST SYNC -->
+    <div class="settings-section sync-section" style="margin-top:24px">
+      <h3>&#9729;&#65039; Синхронизация через GitHub Gist</h3>
+      <p style="font-size:11px;color:var(--text2);margin-bottom:18px;line-height:1.7">
+        Данные хранятся в приватном Gist твоего GitHub-аккаунта. Работает на любом устройстве — достаточно открыть этот файл и нажать <strong>«Загрузить»</strong>.
+      </p>
+      <div class="sync-status-bar" id="sync-status-bar">
+        <div class="sync-dot" id="sync-dot"></div>
+        <span id="sync-status-text">Не настроена</span>
+        <span id="sync-last-time" style="margin-left:auto;font-size:10px;color:var(--text3)"></span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px">
+        <div class="settings-row">
+          <label>GitHub Token
+            <a href="https://github.com/settings/tokens/new?scopes=gist&description=TradeLog" target="_blank"
+               style="color:var(--accent2);font-size:9px;margin-left:6px;text-decoration:none">
+              &#8594; Создать токен
+            </a>
+          </label>
+          <div style="position:relative">
+            <input type="password" id="s-gh-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+              oninput="onTokenInput()" autocomplete="off" style="padding-right:36px">
+            <button onclick="toggleTokenVis()" title="Показать/скрыть"
+              style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:13px;color:var(--text3)" id="token-eye">&#128065;</button>
+          </div>
+        </div>
+        <div class="settings-row">
+          <label>Gist ID
+            <span style="color:var(--text3);font-size:9px;margin-left:4px">(заполнится автоматически после первой загрузки)</span>
+          </label>
+          <input type="text" id="s-gh-gist" placeholder="Оставь пустым — создастся сам" autocomplete="off">
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:4px;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="gistPush()" id="btn-push">&#8593; Сохранить в облако</button>
+        <button class="btn btn-secondary" onclick="gistPull()" id="btn-pull">&#8595; Загрузить из облака</button>
+        <button class="btn btn-secondary" onclick="saveGistConfig()">Сохранить токен</button>
+      </div>
+      <details style="margin-top:18px">
+        <summary style="font-size:10px;color:var(--text3);cursor:pointer;letter-spacing:0.5px;user-select:none">КАК НАСТРОИТЬ — инструкция (нажми чтобы раскрыть)</summary>
+        <div class="sync-instructions">
+          <div class="instr-step"><span class="instr-num">1</span><span>Перейди по ссылке <strong>&#8594; Создать токен</strong> выше. Откроется GitHub.</span></div>
+          <div class="instr-step"><span class="instr-num">2</span><span>В поле <em>Expiration</em> выбери <strong>No expiration</strong>. Галочка <strong>gist</strong> уже выставлена.</span></div>
+          <div class="instr-step"><span class="instr-num">3</span><span>Нажми <strong>Generate token</strong>. Скопируй токен — он начинается с <code>ghp_</code>.</span></div>
+          <div class="instr-step"><span class="instr-num">4</span><span>Вставь токен в поле выше и нажми <strong>Сохранить токен</strong>.</span></div>
+          <div class="instr-step"><span class="instr-num">5</span><span>Нажми <strong>&#8593; Сохранить в облако</strong> — данные уйдут в GitHub. Gist ID заполнится сам.</span></div>
+          <div class="instr-step"><span class="instr-num">6</span><span>На другом устройстве открой этот файл, введи тот же токен и тот же Gist ID, нажми <strong>&#8595; Загрузить из облака</strong>.</span></div>
+          <div class="instr-step warn-step">
+            <span class="instr-num warn-num">!</span>
+            <span>Токен хранится только локально в этом браузере. <strong>Никогда не передавай его другим людям.</strong></span>
+          </div>
+        </div>
+      </details>
+    </div>
+  </div>
+
+</div><!-- /content -->
+
+<!-- Error modal -->
+<div class="modal-overlay" id="error-modal">
+  <div class="modal">
+    <div class="modal-title">Запись об ошибке</div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Дата</label>
+      <input type="date" id="em-date">
+    </div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Сделка №</label>
+      <input type="text" id="em-trade-num" placeholder="например: 7">
+    </div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Тип ошибки</label>
+      <select id="em-type">
+        <option value="entry" class="tag-entry">Вход</option>
+        <option value="exit" class="tag-exit">Выход</option>
+        <option value="stop" class="tag-stop">Стоп</option>
+        <option value="risk" class="tag-risk">Риск</option>
+        <option value="psych" class="tag-psych">Психология</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Что произошло</label>
+      <textarea id="em-what" placeholder="Опишите ошибку..."></textarea>
+    </div>
+    <div class="form-group" style="margin-bottom:20px">
+      <label>Правило на будущее</label>
+      <textarea id="em-rule" placeholder="Как не повторить..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('error-modal')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveError()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete confirm modal -->
+<div class="modal-overlay" id="delete-modal">
+  <div class="modal">
+    <div class="modal-title">Удалить сделку?</div>
+    <div class="delete-confirm">Это действие необратимо. Сделка будет удалена из журнала.</div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('delete-modal')">Отмена</button>
+      <button class="btn btn-danger" onclick="confirmDelete()">Удалить</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<input type="file" id="import-file" accept=".json" style="display:none" onchange="handleImport(event)">
+
+<script>
+// ===== STATE =====
+let trades = [];
+let errors = [];
+let strategies = [];
+let settings = {
+  name: '', deposit: 1000, startDate: '',
+  maxRisk: 1, targetRR: 2, maxDay: 3, maxMonth: 8, fee: 0.1
+};
+let formDirection = 'long';
+let editingId = null;
+let deleteId = null;
+let currentFilter = 'all';
+
+// ===== STORAGE =====
+function save() {
+  localStorage.setItem('tradelog_trades', JSON.stringify(trades));
+  localStorage.setItem('tradelog_errors', JSON.stringify(errors));
+  localStorage.setItem('tradelog_settings', JSON.stringify(settings));
+  localStorage.setItem('tradelog_strategies', JSON.stringify(strategies));
+}
+function load() {
+  const t = localStorage.getItem('tradelog_trades');
+  const e = localStorage.getItem('tradelog_errors');
+  const s = localStorage.getItem('tradelog_settings');
+  const st = localStorage.getItem('tradelog_strategies');
+  if (t) trades = JSON.parse(t);
+  if (e) errors = JSON.parse(e);
+  if (s) settings = { ...settings, ...JSON.parse(s) };
+  if (st) strategies = JSON.parse(st);
+  loadSettingsToForm();
+  updateStrategyDatalist();
+}
+
+// ===== TABS =====
+function showTab(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  const idx = ['tab-journal','tab-new','tab-stats','tab-errors','tab-settings'].indexOf(id);
+  document.querySelectorAll('.tab')[idx].classList.add('active');
+  if (id === 'tab-journal') renderTrades();
+  if (id === 'tab-stats') renderStats();
+  if (id === 'tab-errors') renderErrors();
+  if (id === 'tab-settings') { renderStrategiesList(); loadGistConfig(); }
+  if (id === 'tab-new' && !editingId) { resetForm(); addEntryRow(); addTpRow(); }
+}
+
+// ===== DIRECTION =====
+function setDirection(dir, el) {
+  formDirection = dir;
+  document.querySelectorAll('.dir-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ===== ENTRY ROWS =====
+let entryCount = 0;
+function addEntryRow() {
+  entryCount++;
+  const n = entryCount;
+  const c = document.getElementById('entries-container');
+  const row = document.createElement('div');
+  row.className = 'entry-row';
+  row.id = `entry-row-${n}`;
+  row.innerHTML = `
+    <div class="row-num">#${n}</div>
+    <div class="form-group">
+      <label>Цена входа</label>
+      <input type="number" id="e-price-${n}" step="any" placeholder="0.00" oninput="recalcPnl()">
+    </div>
+    <div class="form-group">
+      <label>Объём (монет / USDT)</label>
+      <input type="number" id="e-vol-${n}" step="any" placeholder="0.00" oninput="recalcPnl()">
+    </div>
+    <div class="form-group">
+      <label>Тип ордера</label>
+      <select id="e-type-${n}">
+        <option>Limit</option><option>Market</option><option>Stop-limit</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Время</label>
+      <input type="time" id="e-time-${n}">
+    </div>
+    <button class="btn btn-danger btn-icon" onclick="removeRow('entry-row-${n}')" title="Удалить">✕</button>`;
+  c.appendChild(row);
+}
+
+let tpCount = 0;
+function addTpRow() {
+  tpCount++;
+  const n = tpCount;
+  const c = document.getElementById('tps-container');
+  const row = document.createElement('div');
+  row.className = 'tp-row';
+  row.id = `tp-row-${n}`;
+  row.innerHTML = `
+    <div class="row-num">TP${n}</div>
+    <div class="form-group">
+      <label>Цена TP</label>
+      <input type="number" id="tp-price-${n}" step="any" placeholder="0.00" oninput="recalcPnl()">
+    </div>
+    <div class="form-group">
+      <label>% позиции закрыть</label>
+      <input type="number" id="tp-pct-${n}" step="any" placeholder="33" oninput="recalcPnl()">
+    </div>
+    <div class="form-group">
+      <label>R:R (авто)</label>
+      <div id="tp-rr-${n}" style="padding:8px 10px;background:var(--surface3);border-radius:6px;font-size:11px;color:var(--text3);">—</div>
+    </div>
+    <div class="form-group">
+      <label>Действие после</label>
+      <select id="tp-action-${n}">
+        <option>Ничего</option>
+        <option>Перенос стопа в БУ</option>
+        <option>Трейлинг стоп</option>
+        <option>Закрыть всё</option>
+      </select>
+    </div>
+    <button class="btn btn-danger btn-icon" onclick="removeRow('tp-row-${n}')" title="Удалить">✕</button>`;
+  c.appendChild(row);
+}
+
+let exitCount = 0;
+function addExitRow() {
+  exitCount++;
+  const n = exitCount;
+  const c = document.getElementById('exits-container');
+  const row = document.createElement('div');
+  row.className = 'exit-row';
+  row.id = `exit-row-${n}`;
+  row.innerHTML = `
+    <div class="row-num">#${n}</div>
+    <div class="form-group">
+      <label>Цена выхода</label>
+      <input type="number" id="ex-price-${n}" step="any" placeholder="0.00" oninput="recalcPnl()">
+    </div>
+    <div class="form-group">
+      <label>% позиции</label>
+      <input type="number" id="ex-pct-${n}" step="any" placeholder="100" oninput="recalcPnl()">
+    </div>
+    <div class="form-group">
+      <label>Тип ордера</label>
+      <select id="ex-type-${n}">
+        <option>Market</option><option>Limit</option><option>Stop</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Причина выхода</label>
+      <select id="ex-reason-${n}">
+        <option>TP</option><option>SL</option><option>Ручной</option>
+        <option>Трейлинг</option><option>Безубыток</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Время</label>
+      <input type="time" id="ex-time-${n}">
+    </div>
+    <button class="btn btn-danger btn-icon" onclick="removeRow('exit-row-${n}')" title="Удалить">✕</button>`;
+  c.appendChild(row);
+}
+
+function removeRow(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+  recalcPnl();
+}
+
+function toggleExits() {
+  const s = document.getElementById('f-status').value;
+  document.getElementById('exits-section').style.opacity = s === 'open' ? '0.4' : '1';
+}
+
+// ===== CALCULATIONS =====
+function getEntries() {
+  const rows = document.querySelectorAll('#entries-container .entry-row');
+  return Array.from(rows).map(row => {
+    const n = row.id.replace('entry-row-','');
+    return {
+      price: parseFloat(document.getElementById(`e-price-${n}`)?.value) || 0,
+      vol: parseFloat(document.getElementById(`e-vol-${n}`)?.value) || 0,
+      type: document.getElementById(`e-type-${n}`)?.value || '',
+      time: document.getElementById(`e-time-${n}`)?.value || ''
+    };
+  }).filter(e => e.price > 0 && e.vol > 0);
+}
+
+function getExits() {
+  const rows = document.querySelectorAll('#exits-container .exit-row');
+  return Array.from(rows).map(row => {
+    const n = row.id.replace('exit-row-','');
+    return {
+      price: parseFloat(document.getElementById(`ex-price-${n}`)?.value) || 0,
+      pct: parseFloat(document.getElementById(`ex-pct-${n}`)?.value) || 0,
+      type: document.getElementById(`ex-type-${n}`)?.value || '',
+      reason: document.getElementById(`ex-reason-${n}`)?.value || '',
+      time: document.getElementById(`ex-time-${n}`)?.value || ''
+    };
+  }).filter(e => e.price > 0 && e.pct > 0);
+}
+
+function getTPs() {
+  const rows = document.querySelectorAll('#tps-container .tp-row');
+  return Array.from(rows).map(row => {
+    const n = row.id.replace('tp-row-','');
+    return {
+      price: parseFloat(document.getElementById(`tp-price-${n}`)?.value) || 0,
+      pct: parseFloat(document.getElementById(`tp-pct-${n}`)?.value) || 0,
+      action: document.getElementById(`tp-action-${n}`)?.value || '',
+      rrEl: document.getElementById(`tp-rr-${n}`)
+    };
+  });
+}
+
+function recalcPnl() {
+  const entries = getEntries();
+  const exits = getExits();
+  const tps = getTPs();
+  const sl = parseFloat(document.getElementById('f-sl')?.value) || 0;
+  const status = document.getElementById('f-status')?.value;
+  const fee = settings.fee / 100;
+
+  // Average entry
+  const totalVol = entries.reduce((s,e) => s + e.vol, 0);
+  const totalCost = entries.reduce((s,e) => s + e.price * e.vol, 0);
+  const avgEntry = totalVol > 0 ? totalCost / totalVol : 0;
+
+  // Show avg entry
+  document.getElementById('pv-avg-entry').textContent = avgEntry > 0 ? avgEntry.toFixed(6).replace(/\.?0+$/, '') : '—';
+
+  // Average exit
+  let exitVol = 0, exitCost = 0;
+  if (exits.length > 0 && status === 'closed') {
+    exits.forEach(ex => {
+      const vol = totalVol * ex.pct / 100;
+      exitVol += vol;
+      exitCost += ex.price * vol;
+    });
+  }
+  const avgExit = exitVol > 0 ? exitCost / exitVol : 0;
+  document.getElementById('pv-avg-exit').textContent = avgExit > 0 ? avgExit.toFixed(6).replace(/\.?0+$/, '') : '—';
+
+  // P&L
+  let pnl = 0;
+  if (avgEntry > 0 && avgExit > 0 && status === 'closed') {
+    const dir = formDirection === 'long' ? 1 : -1;
+    pnl = (avgExit - avgEntry) * exitVol * dir;
+  }
+
+  // Commissions
+  const commissions = (totalVol * avgEntry + exitVol * avgExit) * fee;
+  const netPnl = pnl - commissions;
+
+  // Display
+  const pnlEl = document.getElementById('pv-pnl');
+  const pnlPctEl = document.getElementById('pv-pnl-pct');
+  pnlEl.textContent = `$${netPnl >= 0 ? '+' : ''}${netPnl.toFixed(2)}`;
+  pnlEl.className = `pv ${netPnl > 0 ? 'pos' : netPnl < 0 ? 'neg' : 'neutral'}`;
+  const pct = settings.deposit > 0 ? (netPnl / settings.deposit * 100) : 0;
+  pnlPctEl.textContent = `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
+  pnlPctEl.className = `pv ${pct > 0 ? 'pos' : pct < 0 ? 'neg' : 'neutral'}`;
+  document.getElementById('pv-comm').textContent = `$${commissions.toFixed(4)}`;
+
+  // R:R actual
+  if (avgEntry > 0 && sl > 0 && avgExit > 0) {
+    const risk = Math.abs(avgEntry - sl);
+    const reward = Math.abs(avgExit - avgEntry);
+    const rr = risk > 0 ? (reward / risk).toFixed(2) : '—';
+    document.getElementById('pv-rr').textContent = `1:${rr}`;
+  } else {
+    document.getElementById('pv-rr').textContent = '—';
+  }
+
+  // TP R:R
+  tps.forEach(tp => {
+    if (tp.rrEl && avgEntry > 0 && sl > 0 && tp.price > 0) {
+      const risk = Math.abs(avgEntry - sl);
+      const reward = Math.abs(tp.price - avgEntry);
+      const rr = risk > 0 ? (reward / risk).toFixed(2) : 0;
+      tp.rrEl.textContent = `1:${rr}`;
+      const num = parseFloat(rr);
+      tp.rrEl.style.color = num >= settings.targetRR ? 'var(--green)' : num >= 1 ? 'var(--accent3)' : 'var(--red)';
+    }
+  });
+
+  // Risk display
+  if (avgEntry > 0 && sl > 0 && totalVol > 0) {
+    const riskUsd = Math.abs(avgEntry - sl) * totalVol;
+    const riskPct = settings.deposit > 0 ? (riskUsd / settings.deposit * 100) : 0;
+    const riskEl = document.getElementById('risk-display');
+    riskEl.textContent = `$${riskUsd.toFixed(2)} (${riskPct.toFixed(2)}%)`;
+    riskEl.style.color = riskPct > settings.maxRisk ? 'var(--red)' : 'var(--green)';
+  }
+}
+
+// ===== SAVE TRADE =====
+function saveTrade() {
+  const coin = document.getElementById('f-coin').value.trim().toUpperCase();
+  if (!coin) { showToast('Укажи монету', 'error'); return; }
+  const entries = getEntries();
+  if (entries.length === 0) { showToast('Добавь хотя бы один вход', 'error'); return; }
+
+  const tps = getTPs().filter(t => t.price > 0);
+  const exits = getExits();
+  const status = document.getElementById('f-status').value;
+  const sl = parseFloat(document.getElementById('f-sl').value) || 0;
+
+  // Calc averages
+  const totalVol = entries.reduce((s,e) => s + e.vol, 0);
+  const totalCost = entries.reduce((s,e) => s + e.price * e.vol, 0);
+  const avgEntry = totalVol > 0 ? totalCost / totalVol : 0;
+
+  let exitVol = 0, exitCost = 0;
+  exits.forEach(ex => {
+    const vol = totalVol * ex.pct / 100;
+    exitVol += vol;
+    exitCost += ex.price * vol;
+  });
+  const avgExit = exitVol > 0 ? exitCost / exitVol : 0;
+
+  const fee = settings.fee / 100;
+  const commissions = (totalVol * avgEntry + exitVol * avgExit) * fee;
+  const dir = formDirection === 'long' ? 1 : -1;
+  let pnl = avgEntry > 0 && avgExit > 0 && status === 'closed' ?
+    (avgExit - avgEntry) * exitVol * dir - commissions : 0;
+
+  const trade = {
+    id: editingId || Date.now(),
+    coin, direction: formDirection,
+    dateOpen: document.getElementById('f-date-open').value,
+    timeOpen: document.getElementById('f-time-open').value,
+    dateClose: document.getElementById('f-date-close').value,
+    exchange: document.getElementById('f-exchange').value,
+    tf: document.getElementById('f-tf').value,
+    leverage: parseFloat(document.getElementById('f-leverage').value) || 1,
+    strategy: document.getElementById('f-strategy').value,
+    entries, sl,
+    slType: document.getElementById('f-sl-type').value,
+    tps, exits, status,
+    avgEntry, avgExit, totalVol,
+    commissions, pnl,
+    pnlPct: settings.deposit > 0 ? pnl / settings.deposit * 100 : 0,
+    plan: document.getElementById('f-plan').value,
+    emotion: parseInt(document.getElementById('f-emotion').value) || 0,
+    errorType: document.getElementById('f-error-type').value,
+    screenshot: document.getElementById('f-screenshot').value,
+    comment: document.getElementById('f-comment').value
+  };
+
+  if (editingId) {
+    const idx = trades.findIndex(t => t.id === editingId);
+    if (idx >= 0) trades[idx] = trade;
+    editingId = null;
+    document.getElementById('form-title-text').textContent = 'Новая сделка';
+  } else {
+    trades.unshift(trade);
+  }
+
+  save();
+  updateStrategyDatalist();
+  updateHeaderStats();
+  resetForm();
+  showTab('tab-journal');
+  showToast('Сделка сохранена ✓', 'success');
+}
+
+// ===== RESET FORM =====
+function resetForm() {
+  entryCount = 0; tpCount = 0; exitCount = 0;
+  document.getElementById('entries-container').innerHTML = '';
+  document.getElementById('tps-container').innerHTML = '';
+  document.getElementById('exits-container').innerHTML = '';
+  document.getElementById('f-coin').value = '';
+  document.getElementById('f-date-open').value = new Date().toISOString().slice(0,10);
+  document.getElementById('f-time-open').value = new Date().toTimeString().slice(0,5);
+  document.getElementById('f-date-close').value = '';
+  document.getElementById('f-leverage').value = '5';
+  document.getElementById('f-strategy').value = '';
+  document.getElementById('f-sl').value = '';
+  document.getElementById('f-status').value = 'open';
+  document.getElementById('f-plan').value = 'yes';
+  document.getElementById('f-emotion').value = '';
+  document.getElementById('f-error-type').value = '';
+  document.getElementById('f-screenshot').value = '';
+  document.getElementById('f-comment').value = '';
+  formDirection = 'long';
+  document.querySelectorAll('.dir-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.dir-btn.long').classList.add('active');
+  document.getElementById('pv-pnl').textContent = '$0.00';
+  document.getElementById('pv-pnl-pct').textContent = '0.00%';
+  document.getElementById('pv-avg-entry').textContent = '—';
+  document.getElementById('pv-avg-exit').textContent = '—';
+  document.getElementById('pv-rr').textContent = '—';
+  document.getElementById('pv-comm').textContent = '$0.00';
+  addEntryRow(); addTpRow();
+}
+
+// ===== RENDER TRADES =====
+function renderTrades() {
+  const container = document.getElementById('trades-list');
+  let filtered = trades;
+  if (currentFilter !== 'all') {
+    if (currentFilter === 'open') filtered = trades.filter(t => t.status === 'open');
+    else if (currentFilter === 'profit') filtered = trades.filter(t => t.pnl > 0);
+    else if (currentFilter === 'loss') filtered = trades.filter(t => t.pnl < 0);
+    else if (currentFilter === 'long') filtered = trades.filter(t => t.direction === 'long');
+    else if (currentFilter === 'short') filtered = trades.filter(t => t.direction === 'short');
+  }
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="icon">📂</div><p>Здесь пока пусто.<br>Добавь первую сделку через вкладку <strong>+ Новая сделка</strong></p></div>`;
+    return;
+  }
+
+  const tradeNum = trades.length;
+  container.innerHTML = filtered.map((t, i) => {
+    const num = trades.indexOf(t) + 1;
+    const statusClass = t.status === 'open' ? 'open' : t.pnl > 0 ? 'profit' : 'loss';
+    const pnlClass = t.status === 'open' ? 'open' : t.pnl > 0 ? 'pos' : 'neg';
+    const pnlTxt = t.status === 'open' ? 'Открыта' : `${t.pnl >= 0 ? '+' : ''}$${t.pnl.toFixed(2)}`;
+    const dirClass = t.direction === 'long' ? 'long' : 'short';
+    const dirTxt = t.direction === 'long' ? 'ЛОНГ' : 'ШОРТ';
+
+    // Entries sub-table
+    const entriesHtml = t.entries.map((e,j) => `
+      <tr><td>#${j+1}</td><td>${e.price}</td><td>${e.vol}</td><td>${e.type}</td><td>${e.time||'—'}</td></tr>`).join('');
+
+    // TPs sub-table
+    const tpsHtml = t.tps.filter(tp=>tp.price>0).map((tp,j) => {
+      const risk = t.avgEntry > 0 && t.sl > 0 ? Math.abs(t.avgEntry - t.sl) : 0;
+      const reward = t.avgEntry > 0 ? Math.abs(tp.price - t.avgEntry) : 0;
+      const rr = risk > 0 ? (reward/risk).toFixed(2) : '—';
+      return `<tr><td>TP${j+1}</td><td>${tp.price}</td><td>${tp.pct}%</td><td>1:${rr}</td><td>${tp.action}</td></tr>`;
+    }).join('');
+
+    // Exits sub-table
+    const exitsHtml = t.exits.map((e,j) => `
+      <tr><td>#${j+1}</td><td>${e.price}</td><td>${e.pct}%</td><td>${e.reason}</td><td>${e.time||'—'}</td></tr>`).join('');
+
+    const planIcon = {yes:'✓ Да', partial:'⚠ Частично', no:'✗ Нет'}[t.plan] || '';
+
+    return `
+    <div class="trade-card ${statusClass}" id="card-${t.id}">
+      <div class="card-header" onclick="toggleCard(${t.id})">
+        <div>
+          <div class="trade-num">#${num}</div>
+          <div class="trade-date">${t.dateOpen||''}</div>
+        </div>
+        <div class="trade-coin">${t.coin}</div>
+        <span class="trade-dir ${dirClass}">${dirTxt}</span>
+        <span class="trade-leverage">${t.leverage}x</span>
+        <span class="trade-strategy">${t.strategy||'—'}</span>
+        <span style="font-size:10px;color:var(--text3)">${t.exchange||''} · ${t.tf||''}</span>
+        <div style="text-align:right">
+          <div class="trade-pnl ${pnlClass}">${pnlTxt}</div>
+          ${t.pnlPct !== undefined && t.status==='closed' ? `<div style="font-size:10px;color:var(--text3)">${t.pnlPct >= 0 ? '+' : ''}${t.pnlPct.toFixed(2)}%</div>` : ''}
+        </div>
+        <div class="expand-icon">▼</div>
+      </div>
+      ${t.comment ? `<div class="card-comment">💬 ${t.comment}</div>` : ''}
+      <div class="card-detail">
+        <div class="detail-grid">
+          <div class="detail-section">
+            <div class="detail-section-title">Входы в позицию</div>
+            <table class="sub-table">
+              <thead><tr><th>#</th><th>Цена</th><th>Объём</th><th>Тип</th><th>Время</th></tr></thead>
+              <tbody>${entriesHtml}</tbody>
+            </table>
+            <div class="detail-rows" style="margin-top:10px">
+              <div class="detail-row"><span class="dk">Ср. цена входа</span><span class="dv">${t.avgEntry?.toFixed(6)||'—'}</span></div>
+              <div class="detail-row"><span class="dk">Общий объём</span><span class="dv">${t.totalVol||'—'}</span></div>
+              <div class="detail-row"><span class="dk">Стоп-лосс</span><span class="dv neg">${t.sl||'—'}</span></div>
+              <div class="detail-row"><span class="dk">Тип стопа</span><span class="dv">${t.slType||'—'}</span></div>
+            </div>
+          </div>
+          <div class="detail-section">
+            <div class="detail-section-title">Тейк-профиты</div>
+            ${t.tps?.length > 0 ? `<table class="sub-table">
+              <thead><tr><th>#</th><th>Цена</th><th>%</th><th>R:R</th><th>После</th></tr></thead>
+              <tbody>${tpsHtml}</tbody>
+            </table>` : '<div style="font-size:11px;color:var(--text3)">Не указаны</div>'}
+            ${t.exits?.length > 0 ? `
+            <div class="detail-section-title" style="margin-top:14px">Фактические выходы</div>
+            <table class="sub-table">
+              <thead><tr><th>#</th><th>Цена</th><th>%</th><th>Причина</th><th>Время</th></tr></thead>
+              <tbody>${exitsHtml}</tbody>
+            </table>
+            <div class="detail-rows" style="margin-top:8px">
+              <div class="detail-row"><span class="dk">Ср. цена выхода</span><span class="dv">${t.avgExit?.toFixed(6)||'—'}</span></div>
+            </div>` : ''}
+          </div>
+          <div class="detail-section">
+            <div class="detail-section-title">Итог и оценка</div>
+            <div class="detail-rows">
+              <div class="detail-row"><span class="dk">P&L</span><span class="dv ${pnlClass}">${t.status==='closed'?(t.pnl>=0?'+':'')+t.pnl.toFixed(2)+' USD':'Открыта'}</span></div>
+              <div class="detail-row"><span class="dk">P&L %</span><span class="dv ${pnlClass}">${t.status==='closed'?(t.pnlPct>=0?'+':'')+t.pnlPct.toFixed(2)+'%':'—'}</span></div>
+              <div class="detail-row"><span class="dk">Комиссии</span><span class="dv">$${(t.commissions||0).toFixed(4)}</span></div>
+              <div class="detail-row"><span class="dk">План</span><span class="dv">${planIcon}</span></div>
+              <div class="detail-row"><span class="dk">Эмоции</span><span class="dv">${t.emotion ? '⭐'.repeat(t.emotion) : '—'}</span></div>
+              ${t.errorType ? `<div class="detail-row"><span class="dk">Ошибка</span><span class="dv neg">${t.errorType}</span></div>` : ''}
+              ${t.screenshot ? `<div class="detail-row"><span class="dk">Скриншот</span><a href="${t.screenshot}" target="_blank" style="color:var(--accent2);font-size:10px">Открыть →</a></div>` : ''}
+            </div>
+          </div>
+        </div>
+        ${t.comment ? `<div class="detail-comment">💬 ${t.comment}</div>` : ''}
+        <div class="card-actions">
+          <button class="btn btn-secondary btn-sm" onclick="editTrade(${t.id})">✏️ Редактировать</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteTrade(${t.id})">🗑 Удалить</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleCard(id) {
+  const card = document.getElementById(`card-${id}`);
+  card.classList.toggle('expanded');
+}
+
+function filterTrades(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  renderTrades();
+}
+
+// ===== EDIT =====
+function editTrade(id) {
+  const t = trades.find(t => t.id === id);
+  if (!t) return;
+  editingId = id;
+  showTab('tab-new');
+  document.getElementById('form-title-text').textContent = 'Редактирование сделки';
+  setTimeout(() => {
+    document.getElementById('f-coin').value = t.coin;
+    formDirection = t.direction;
+    document.querySelectorAll('.dir-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector(`.dir-btn.${t.direction}`).classList.add('active');
+    document.getElementById('f-date-open').value = t.dateOpen||'';
+    document.getElementById('f-time-open').value = t.timeOpen||'';
+    document.getElementById('f-date-close').value = t.dateClose||'';
+    document.getElementById('f-leverage').value = t.leverage||5;
+    document.getElementById('f-strategy').value = t.strategy||'';
+    document.getElementById('f-exchange').value = t.exchange||'OKX';
+    document.getElementById('f-tf').value = t.tf||'1H';
+    document.getElementById('f-sl').value = t.sl||'';
+    document.getElementById('f-sl-type').value = t.slType||'Фиксированный';
+    document.getElementById('f-status').value = t.status||'open';
+    document.getElementById('f-plan').value = t.plan||'yes';
+    document.getElementById('f-emotion').value = t.emotion||'';
+    document.getElementById('f-error-type').value = t.errorType||'';
+    document.getElementById('f-screenshot').value = t.screenshot||'';
+    document.getElementById('f-comment').value = t.comment||'';
+
+    // Re-populate entries
+    entryCount = 0;
+    document.getElementById('entries-container').innerHTML = '';
+    (t.entries||[]).forEach(e => {
+      addEntryRow();
+      const n = entryCount;
+      document.getElementById(`e-price-${n}`).value = e.price||'';
+      document.getElementById(`e-vol-${n}`).value = e.vol||'';
+      if (document.getElementById(`e-type-${n}`)) document.getElementById(`e-type-${n}`).value = e.type||'Limit';
+      if (document.getElementById(`e-time-${n}`)) document.getElementById(`e-time-${n}`).value = e.time||'';
+    });
+
+    tpCount = 0;
+    document.getElementById('tps-container').innerHTML = '';
+    (t.tps||[]).forEach(tp => {
+      addTpRow();
+      const n = tpCount;
+      document.getElementById(`tp-price-${n}`).value = tp.price||'';
+      document.getElementById(`tp-pct-${n}`).value = tp.pct||'';
+      if (document.getElementById(`tp-action-${n}`)) document.getElementById(`tp-action-${n}`).value = tp.action||'Ничего';
+    });
+
+    exitCount = 0;
+    document.getElementById('exits-container').innerHTML = '';
+    (t.exits||[]).forEach(ex => {
+      addExitRow();
+      const n = exitCount;
+      document.getElementById(`ex-price-${n}`).value = ex.price||'';
+      document.getElementById(`ex-pct-${n}`).value = ex.pct||'';
+      if (document.getElementById(`ex-type-${n}`)) document.getElementById(`ex-type-${n}`).value = ex.type||'Market';
+      if (document.getElementById(`ex-reason-${n}`)) document.getElementById(`ex-reason-${n}`).value = ex.reason||'TP';
+      if (document.getElementById(`ex-time-${n}`)) document.getElementById(`ex-time-${n}`).value = ex.time||'';
+    });
+
+    recalcPnl();
+  }, 50);
+}
+
+// ===== DELETE =====
+function deleteTrade(id) {
+  deleteId = id;
+  document.getElementById('delete-modal').classList.add('active');
+}
+function confirmDelete() {
+  trades = trades.filter(t => t.id !== deleteId);
+  save();
+  updateHeaderStats();
+  renderTrades();
+  closeModal('delete-modal');
+  showToast('Сделка удалена', 'success');
+}
+
+// ===== STATS =====
+function renderStats() {
+  const closed = trades.filter(t => t.status === 'closed');
+  const profitable = closed.filter(t => t.pnl > 0);
+  const losing = closed.filter(t => t.pnl < 0);
+  const totalPnl = closed.reduce((s,t) => s + t.pnl, 0);
+  const winRate = closed.length > 0 ? (profitable.length / closed.length * 100) : 0;
+  const avgWin = profitable.length > 0 ? profitable.reduce((s,t) => s+t.pnl,0)/profitable.length : 0;
+  const avgLoss = losing.length > 0 ? losing.reduce((s,t) => s+t.pnl,0)/losing.length : 0;
+  const profitFactor = Math.abs(avgLoss) > 0 ? Math.abs(avgWin / avgLoss) : 0;
+
+  const statsGrid = document.getElementById('stats-grid');
+  statsGrid.innerHTML = `
+    <div class="stat-card">
+      <div class="sc-label">Win Rate</div>
+      <div class="sc-value ${winRate>=50?'pos':winRate>=40?'warn':'neg'}">${winRate.toFixed(1)}%</div>
+      <div class="sc-sub">${profitable.length} из ${closed.length} сделок</div>
+    </div>
+    <div class="stat-card">
+      <div class="sc-label">Общий P&L</div>
+      <div class="sc-value ${totalPnl>=0?'pos':'neg'}">${totalPnl>=0?'+':''}$${totalPnl.toFixed(2)}</div>
+      <div class="sc-sub">${totalPnl>=0?'+':''}${(totalPnl/settings.deposit*100).toFixed(2)}% депозита</div>
+    </div>
+    <div class="stat-card">
+      <div class="sc-label">Profit Factor</div>
+      <div class="sc-value ${profitFactor>=1.5?'pos':profitFactor>=1?'warn':'neg'}">${profitFactor.toFixed(2)}</div>
+      <div class="sc-sub">Норма > 1.5</div>
+    </div>
+    <div class="stat-card">
+      <div class="sc-label">Avg Win / Avg Loss</div>
+      <div class="sc-value neutral">$${avgWin.toFixed(2)}</div>
+      <div class="sc-sub">Avg Loss: $${avgLoss.toFixed(2)}</div>
+    </div>
+    <div class="stat-card">
+      <div class="sc-label">Сделок всего</div>
+      <div class="sc-value neutral">${trades.length}</div>
+      <div class="sc-sub">${trades.filter(t=>t.status==='open').length} открытых</div>
+    </div>
+    <div class="stat-card">
+      <div class="sc-label">Лучшая сделка</div>
+      <div class="sc-value pos">+$${closed.length ? Math.max(...closed.map(t=>t.pnl)).toFixed(2) : '0.00'}</div>
+      <div class="sc-sub">&nbsp;</div>
+    </div>
+    <div class="stat-card">
+      <div class="sc-label">Худшая сделка</div>
+      <div class="sc-value neg">$${closed.length ? Math.min(...closed.map(t=>t.pnl)).toFixed(2) : '0.00'}</div>
+      <div class="sc-sub">&nbsp;</div>
+    </div>
+    <div class="stat-card">
+      <div class="sc-label">% дисциплины</div>
+      <div class="sc-value ${trades.length ? (trades.filter(t=>t.plan==='yes').length/trades.length*100) >= 80 ? 'pos' : 'warn' : 'neutral'}">${trades.length ? (trades.filter(t=>t.plan==='yes').length/trades.length*100).toFixed(1) : 0}%</div>
+      <div class="sc-sub">Цель ≥ 80%</div>
+    </div>`;
+
+  // Equity curve
+  const canvas = document.getElementById('equity-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * 2;
+  canvas.height = 280;
+  ctx.scale(2,1);
+  const sortedClosed = [...closed].sort((a,b) => new Date(a.dateClose)-new Date(b.dateClose));
+  let eq = [0];
+  sortedClosed.forEach(t => eq.push(eq[eq.length-1] + t.pnl));
+  if (eq.length > 1) {
+    const maxEq = Math.max(...eq), minEq = Math.min(...eq);
+    const range = maxEq - minEq || 1;
+    const w = canvas.offsetWidth, h = 130;
+    ctx.clearRect(0,0,w,h);
+    ctx.beginPath();
+    eq.forEach((v,i) => {
+      const x = i / (eq.length-1) * (w-20) + 10;
+      const y = h - 10 - (v - minEq) / range * (h-20);
+      i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    });
+    ctx.strokeStyle = totalPnl >= 0 ? '#36f7a3' : '#ff4d6a';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Fill
+    ctx.lineTo((eq.length-1)/(eq.length-1)*(w-20)+10, h-10);
+    ctx.lineTo(10, h-10);
+    ctx.closePath();
+    ctx.fillStyle = totalPnl >= 0 ? 'rgba(54,247,163,0.08)' : 'rgba(255,77,106,0.08)';
+    ctx.fill();
+  }
+
+  // Strategy chart
+  const stratMap = {};
+  closed.forEach(t => {
+    const s = t.strategy || 'Без стратегии';
+    if (!stratMap[s]) stratMap[s] = 0;
+    stratMap[s] += t.pnl;
+  });
+  const maxStratAbs = Math.max(...Object.values(stratMap).map(Math.abs), 0.01);
+  document.getElementById('strategy-chart').innerHTML = Object.entries(stratMap).map(([k,v]) => `
+    <div class="bar-item">
+      <span class="bar-label">${k.length>14?k.slice(0,13)+'…':k}</span>
+      <div class="bar-track"><div class="bar-fill ${v>=0?'pos':'neg'}" style="width:${Math.abs(v)/maxStratAbs*100}%"></div></div>
+      <span class="bar-val ${v>=0?'pos':'neg'}">${v>=0?'+':''}$${v.toFixed(2)}</span>
+    </div>`).join('') || '<div style="color:var(--text3);font-size:11px">Нет данных</div>';
+
+  // Weekday chart
+  const days = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+  const dayMap = {0:0,1:0,2:0,3:0,4:0,5:0,6:0};
+  closed.forEach(t => {
+    if (t.dateClose) { const d = new Date(t.dateClose).getDay(); dayMap[d] += t.pnl; }
+  });
+  const maxDayAbs = Math.max(...Object.values(dayMap).map(Math.abs), 0.01);
+  document.getElementById('weekday-chart').innerHTML = [1,2,3,4,5,6,0].map(d => `
+    <div class="bar-item">
+      <span class="bar-label">${days[d]}</span>
+      <div class="bar-track"><div class="bar-fill ${dayMap[d]>=0?'pos':'neg'}" style="width:${Math.abs(dayMap[d])/maxDayAbs*100}%"></div></div>
+      <span class="bar-val ${dayMap[d]>=0?'pos':'neg'}">${dayMap[d]>=0?'+':''}$${dayMap[d].toFixed(2)}</span>
+    </div>`).join('');
+
+  // Coin chart
+  const coinMap = {};
+  closed.forEach(t => {
+    if (!coinMap[t.coin]) coinMap[t.coin] = 0;
+    coinMap[t.coin] += t.pnl;
+  });
+  const maxCoinAbs = Math.max(...Object.values(coinMap).map(Math.abs), 0.01);
+  const topCoins = Object.entries(coinMap).sort((a,b) => Math.abs(b[1])-Math.abs(a[1])).slice(0,8);
+  document.getElementById('coin-chart').innerHTML = topCoins.map(([k,v]) => `
+    <div class="bar-item">
+      <span class="bar-label">${k}</span>
+      <div class="bar-track"><div class="bar-fill ${v>=0?'pos':'neg'}" style="width:${Math.abs(v)/maxCoinAbs*100}%"></div></div>
+      <span class="bar-val ${v>=0?'pos':'neg'}">${v>=0?'+':''}$${v.toFixed(2)}</span>
+    </div>`).join('') || '<div style="color:var(--text3);font-size:11px">Нет данных</div>';
+}
+
+// ===== ERRORS =====
+function renderErrors() {
+  const body = document.getElementById('errors-body');
+  if (errors.length === 0) {
+    body.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:30px">Записей пока нет</td></tr>`;
+    return;
+  }
+  const tagClass = {entry:'tag-entry',exit:'tag-exit',stop:'tag-stop',risk:'tag-risk',psych:'tag-psych'};
+  const tagLabel = {entry:'Вход',exit:'Выход',stop:'Стоп',risk:'Риск',psych:'Психо'};
+  body.innerHTML = errors.map((e,i) => `
+    <tr>
+      <td>${e.date||'—'}</td>
+      <td>${e.tradeNum||'—'}</td>
+      <td><span class="tag ${tagClass[e.type]||''}">${tagLabel[e.type]||e.type}</span></td>
+      <td>${e.what||''}</td>
+      <td>${e.rule||''}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteError(${i})">✕</button></td>
+    </tr>`).join('');
+}
+
+function showErrorModal() {
+  document.getElementById('em-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('em-trade-num').value = '';
+  document.getElementById('em-what').value = '';
+  document.getElementById('em-rule').value = '';
+  document.getElementById('error-modal').classList.add('active');
+}
+function saveError() {
+  errors.push({
+    date: document.getElementById('em-date').value,
+    tradeNum: document.getElementById('em-trade-num').value,
+    type: document.getElementById('em-type').value,
+    what: document.getElementById('em-what').value,
+    rule: document.getElementById('em-rule').value
+  });
+  save();
+  renderErrors();
+  closeModal('error-modal');
+  showToast('Запись добавлена ✓', 'success');
+}
+function deleteError(i) {
+  errors.splice(i,1);
+  save();
+  renderErrors();
+}
+
+// ===== SETTINGS =====
+function loadSettingsToForm() {
+  document.getElementById('s-name').value = settings.name||'';
+  document.getElementById('s-deposit').value = settings.deposit||1000;
+  document.getElementById('s-start-date').value = settings.startDate||'';
+  document.getElementById('s-max-risk').value = settings.maxRisk||1;
+  document.getElementById('s-rr').value = settings.targetRR||2;
+  document.getElementById('s-max-day').value = settings.maxDay||3;
+  document.getElementById('s-max-month').value = settings.maxMonth||8;
+  document.getElementById('s-fee').value = settings.fee||0.1;
+}
+function saveSettings() {
+  settings.name = document.getElementById('s-name').value;
+  settings.deposit = parseFloat(document.getElementById('s-deposit').value)||1000;
+  settings.startDate = document.getElementById('s-start-date').value;
+  settings.maxRisk = parseFloat(document.getElementById('s-max-risk').value)||1;
+  settings.targetRR = parseFloat(document.getElementById('s-rr').value)||2;
+  settings.maxDay = parseFloat(document.getElementById('s-max-day').value)||3;
+  settings.maxMonth = parseFloat(document.getElementById('s-max-month').value)||8;
+  settings.fee = parseFloat(document.getElementById('s-fee').value)||0.1;
+  save();
+  updateHeaderStats();
+  showToast('Настройки сохранены ✓', 'success');
+}
+
+// ===== HEADER STATS =====
+function updateHeaderStats() {
+  const closed = trades.filter(t => t.status === 'closed');
+  const totalPnl = closed.reduce((s,t) => s+t.pnl, 0);
+  const profitable = closed.filter(t => t.pnl > 0);
+  const wr = closed.length > 0 ? (profitable.length/closed.length*100) : 0;
+  document.getElementById('hdr-deposit').textContent = `$${settings.deposit.toFixed(2)}`;
+  const pnlEl = document.getElementById('hdr-pnl');
+  pnlEl.textContent = `${totalPnl>=0?'+':''}$${totalPnl.toFixed(2)}`;
+  pnlEl.className = `value ${totalPnl>0?'pos':totalPnl<0?'neg':'neutral'}`;
+  document.getElementById('hdr-wr').textContent = `${wr.toFixed(1)}%`;
+  document.getElementById('hdr-count').textContent = trades.length;
+}
+
+function updateStrategyDatalist() {
+  // Combine saved strategies + strategies used in trades (for backwards compat)
+  const fromTrades = trades.map(t => t.strategy).filter(Boolean);
+  const savedNames = strategies.map(s => s.name);
+  const all = [...new Set([...savedNames, ...fromTrades])];
+  document.getElementById('strategy-list').innerHTML = all.map(s => `<option value="${s}">`).join('');
+  renderStrategiesList();
+}
+
+const STRATEGY_COLORS = ['#0a7c55','#0072b8','#c47d00','#7050c8','#c0392b','#2980b9','#16a085','#8e44ad','#d35400','#27ae60'];
+
+function renderStrategiesList() {
+  const container = document.getElementById('strategies-list');
+  if (!container) return;
+  if (strategies.length === 0) {
+    container.innerHTML = `<div style="font-size:11px;color:var(--text3);padding:10px 0">Список пуст. Добавь первую стратегию ниже.</div>`;
+    return;
+  }
+  container.innerHTML = strategies.map((s, i) => `
+    <div class="strategy-item" id="strat-item-${i}">
+      <div class="s-color" style="background:${STRATEGY_COLORS[i % STRATEGY_COLORS.length]}"></div>
+      <input class="s-name" value="${escHtml(s.name)}" placeholder="Название"
+        onchange="updateStrategy(${i},'name',this.value)"
+        title="Название стратегии (редактируется)">
+      <input class="s-desc" value="${escHtml(s.desc||'')}" placeholder="Краткое описание (необязательно)"
+        onchange="updateStrategy(${i},'desc',this.value)"
+        title="Описание">
+      <button class="btn btn-danger btn-sm btn-icon" onclick="removeStrategy(${i})" title="Удалить">✕</button>
+    </div>`).join('');
+}
+
+function addStrategy() {
+  const inp = document.getElementById('s-new-strategy');
+  const name = inp.value.trim();
+  if (!name) { showToast('Введи название стратегии', 'error'); return; }
+  if (strategies.find(s => s.name.toLowerCase() === name.toLowerCase())) {
+    showToast('Такая стратегия уже есть', 'error'); return;
+  }
+  strategies.push({ name, desc: '' });
+  inp.value = '';
+  save();
+  updateStrategyDatalist();
+  showToast('Стратегия добавлена ✓', 'success');
+}
+
+function updateStrategy(i, field, value) {
+  if (strategies[i]) {
+    strategies[i][field] = value.trim();
+    save();
+    updateStrategyDatalist();
+  }
+}
+
+function removeStrategy(i) {
+  const name = strategies[i]?.name || '';
+  strategies.splice(i, 1);
+  save();
+  updateStrategyDatalist();
+  showToast(`«${name}» удалена`, 'success');
+}
+
+function escHtml(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ===== UTILS =====
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `show ${type}`;
+  setTimeout(() => t.className = '', 2500);
+}
+
+function exportData() {
+  const data = { trades, errors, settings, strategies };
+  const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `tradelog_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+}
+function importData() { document.getElementById('import-file').click(); }
+function handleImport(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (data.trades) trades = data.trades;
+      if (data.errors) errors = data.errors;
+      if (data.strategies) strategies = data.strategies;
+      if (data.settings) { settings = {...settings, ...data.settings}; loadSettingsToForm(); }
+      save();
+      updateHeaderStats();
+      updateStrategyDatalist();
+      showToast('Данные импортированы ✓', 'success');
+    } catch { showToast('Ошибка импорта', 'error'); }
+  };
+  reader.readAsText(file);
+}
+function clearAll() {
+  if (!confirm('Удалить ВСЕ данные? Это нельзя отменить.')) return;
+  trades = []; errors = [];
+  save();
+  updateHeaderStats();
+  renderTrades();
+  showToast('Все данные очищены', 'success');
+}
+
+// ===== GITHUB GIST SYNC =====
+const GIST_FILENAME = 'tradelog_data.json';
+
+function saveGistConfig() {
+  const token = document.getElementById('s-gh-token').value.trim();
+  const gistId = document.getElementById('s-gh-gist').value.trim();
+  if (!token) { showToast('Введи GitHub токен', 'error'); return; }
+  localStorage.setItem('tradelog_gh_token', token);
+  localStorage.setItem('tradelog_gh_gist', gistId);
+  setSyncStatus('ok', 'Токен сохранён');
+  showToast('Токен сохранён ✓', 'success');
+}
+
+function loadGistConfig() {
+  const token = localStorage.getItem('tradelog_gh_token') || '';
+  const gistId = localStorage.getItem('tradelog_gh_gist') || '';
+  const lastSync = localStorage.getItem('tradelog_last_sync') || '';
+  const tokenEl = document.getElementById('s-gh-token');
+  const gistEl = document.getElementById('s-gh-gist');
+  if (tokenEl) tokenEl.value = token;
+  if (gistEl) gistEl.value = gistId;
+  if (token && gistId) {
+    setSyncStatus('ok', 'Настроена');
+    if (lastSync) {
+      const el = document.getElementById('sync-last-time');
+      if (el) el.textContent = 'Последняя синхр.: ' + new Date(lastSync).toLocaleString('ru');
+    }
+  } else if (token) {
+    setSyncStatus('ok', 'Токен есть, Gist ID не указан');
+  }
+}
+
+function onTokenInput() {
+  const val = document.getElementById('s-gh-token').value.trim();
+  if (val.length > 5) setSyncStatus('ok', 'Токен введён — нажми «Сохранить токен»');
+}
+
+function toggleTokenVis() {
+  const inp = document.getElementById('s-gh-token');
+  const eye = document.getElementById('token-eye');
+  if (inp.type === 'password') { inp.type = 'text'; eye.textContent = '🙈'; }
+  else { inp.type = 'password'; eye.textContent = '👁'; }
+}
+
+function setSyncStatus(state, text) {
+  const dot = document.getElementById('sync-dot');
+  const txt = document.getElementById('sync-status-text');
+  if (!dot || !txt) return;
+  dot.className = 'sync-dot ' + state;
+  txt.textContent = text;
+}
+
+function getGistHeaders(token) {
+  return {
+    'Authorization': 'token ' + token,
+    'Accept': 'application/vnd.github.v3+json',
+    'Content-Type': 'application/json'
+  };
+}
+
+async function gistPush() {
+  const token = localStorage.getItem('tradelog_gh_token');
+  if (!token) { showToast('Сначала введи и сохрани GitHub токен', 'error'); return; }
+
+  setSyncStatus('loading', 'Сохранение в облако...');
+  setBtnLoading('btn-push', true);
+
+  const payload = JSON.stringify({ trades, errors, settings, strategies }, null, 2);
+  const body = {
+    description: 'TradeLog — торговый журнал',
+    public: false,
+    files: { [GIST_FILENAME]: { content: payload } }
+  };
+
+  try {
+    let gistId = localStorage.getItem('tradelog_gh_gist');
+    let resp, data;
+
+    if (gistId) {
+      // Update existing gist
+      resp = await fetch(`https://api.github.com/gists/${gistId}`, {
+        method: 'PATCH',
+        headers: getGistHeaders(token),
+        body: JSON.stringify(body)
+      });
+    } else {
+      // Create new gist
+      resp = await fetch('https://api.github.com/gists', {
+        method: 'POST',
+        headers: getGistHeaders(token),
+        body: JSON.stringify(body)
+      });
+    }
+
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.message || resp.statusText);
+    }
+
+    data = await resp.json();
+
+    // Save gist ID for future use
+    if (!gistId) {
+      gistId = data.id;
+      localStorage.setItem('tradelog_gh_gist', gistId);
+      const gistEl = document.getElementById('s-gh-gist');
+      if (gistEl) gistEl.value = gistId;
+    }
+
+    const now = new Date().toISOString();
+    localStorage.setItem('tradelog_last_sync', now);
+    const timeEl = document.getElementById('sync-last-time');
+    if (timeEl) timeEl.textContent = 'Последняя синхр.: ' + new Date(now).toLocaleString('ru');
+
+    setSyncStatus('ok', 'Сохранено в облако');
+    showToast('Данные сохранены в GitHub Gist ✓', 'success');
+  } catch (e) {
+    setSyncStatus('error', 'Ошибка: ' + e.message);
+    showToast('Ошибка сохранения: ' + e.message, 'error');
+  } finally {
+    setBtnLoading('btn-push', false);
+  }
+}
+
+async function gistPull() {
+  const token = localStorage.getItem('tradelog_gh_token');
+  const gistId = localStorage.getItem('tradelog_gh_gist')
+    || document.getElementById('s-gh-gist')?.value.trim();
+
+  if (!token) { showToast('Сначала введи и сохрани GitHub токен', 'error'); return; }
+  if (!gistId) { showToast('Укажи Gist ID (или сначала сделай ↑ Сохранить с другого устройства)', 'error'); return; }
+
+  setSyncStatus('loading', 'Загрузка из облака...');
+  setBtnLoading('btn-pull', true);
+
+  try {
+    const resp = await fetch(`https://api.github.com/gists/${gistId}`, {
+      headers: getGistHeaders(token)
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.message || resp.statusText);
+    }
+
+    const data = await resp.json();
+    const fileContent = data.files?.[GIST_FILENAME]?.content;
+    if (!fileContent) throw new Error('Файл tradelog_data.json не найден в Gist');
+
+    const parsed = JSON.parse(fileContent);
+    if (parsed.trades) trades = parsed.trades;
+    if (parsed.errors) errors = parsed.errors;
+    if (parsed.strategies) strategies = parsed.strategies;
+    if (parsed.settings) { settings = { ...settings, ...parsed.settings }; loadSettingsToForm(); }
+
+    save();
+    updateHeaderStats();
+    updateStrategyDatalist();
+    renderTrades();
+
+    const now = new Date().toISOString();
+    localStorage.setItem('tradelog_last_sync', now);
+    const timeEl = document.getElementById('sync-last-time');
+    if (timeEl) timeEl.textContent = 'Последняя синхр.: ' + new Date(now).toLocaleString('ru');
+
+    setSyncStatus('ok', 'Данные загружены');
+    showToast('Данные загружены из GitHub Gist ✓', 'success');
+  } catch (e) {
+    setSyncStatus('error', 'Ошибка: ' + e.message);
+    showToast('Ошибка загрузки: ' + e.message, 'error');
+  } finally {
+    setBtnLoading('btn-pull', false);
+  }
+}
+
+function setBtnLoading(id, loading) {
+  const btn = document.getElementById(id);
+  if (!btn) return;
+  btn.disabled = loading;
+  btn.style.opacity = loading ? '0.6' : '1';
+}
+
+// ===== SEED DATA (old trades) =====
+const SEED_TRADES = [
+  {
+    id: 1001,
+    coin: 'MAVIA', direction: 'long',
+    dateOpen: '2026-05-01', timeOpen: '23:35', dateClose: '2026-05-04',
+    exchange: 'MEXC', tf: '1H', leverage: 5,
+    strategy: 'от балды',
+    entries: [{ price: 0.0344, vol: 290, type: 'Limit', time: '23:35' }],
+    sl: 0, slType: 'Фиксированный',
+    tps: [{ price: 0.0384, pct: 100, action: 'Закрыть всё' }],
+    exits: [{ price: 0.03219, pct: 100, type: 'Market', reason: 'SL', time: '' }],
+    status: 'closed',
+    avgEntry: 0.0344, avgExit: 0.03219, totalVol: 290,
+    commissions: 0.0046,
+    pnl: -0.6455,
+    pnlPct: -0.499,
+    plan: 'yes', emotion: 0, errorType: 'Вход без сигнала',
+    screenshot: '',
+    comment: 'Плечо 5x | LIMIT вход, MARKET выход | Реализованный PNL по MEXC: −0.6409 USDT | Комиссии: вход 0.0009 + выход 0.0037 | Как всегда в минус. Не угадала.'
+  },
+  {
+    id: 1002,
+    coin: 'BIGTIME', direction: 'short',
+    dateOpen: '2026-05-05', timeOpen: '01:12', dateClose: '2026-05-08',
+    exchange: 'MEXC', tf: '1H', leverage: 5,
+    strategy: 'по индикаторам',
+    entries: [{ price: 0.01204, vol: 1600, type: 'Limit', time: '01:12' }],
+    sl: 0, slType: 'Фиксированный',
+    tps: [
+      { price: 0.0118, pct: 50, action: 'Перенос стопа в БУ' },
+      { price: 0.01137, pct: 25, action: 'Ничего' },
+      { price: 0.01087, pct: 25, action: 'Закрыть всё' }
+    ],
+    exits: [
+      { price: 0.0118, pct: 50, type: 'Market', reason: 'TP', time: '' },
+      { price: 0.01162, pct: 6.25, type: 'Market', reason: 'TP', time: '' },
+      { price: 0.01137, pct: 6.25, type: 'Market', reason: 'TP', time: '' },
+      { price: 0.01087, pct: 37.5, type: 'Market', reason: 'TP', time: '' }
+    ],
+    status: 'closed',
+    avgEntry: 0.01204, avgExit: 0.01138, totalVol: 1600,
+    commissions: 0.0148,
+    pnl: 0.9932,
+    pnlPct: 0.768,
+    plan: 'yes', emotion: 4, errorType: '',
+    screenshot: '',
+    comment: 'Плечо 5x | LIMIT вход, 4 частичных MARKET выхода. Открылась по индикатору updown pump, но перестроила ордера по теханализу. Закрытие: 800т@0.0118, 100т@0.01162, 100т@0.01137, 600т@0.01087. Комиссии: вход 0.0077 + выход 0.0071'
+  },
+  {
+    id: 1003,
+    coin: 'GIGA', direction: 'long',
+    dateOpen: '2026-05-08', timeOpen: '22:09', dateClose: '',
+    exchange: 'MEXC', tf: '1H', leverage: 5,
+    strategy: 'по индикаторам',
+    entries: [{ price: 0.00339, vol: 0, type: 'Limit', time: '22:09' }],
+    sl: 0.003127, slType: 'Фиксированный',
+    tps: [{ price: 0.00384, pct: 100, action: 'Закрыть всё' }],
+    exits: [],
+    status: 'closed',
+    avgEntry: 0.00339, avgExit: 0, totalVol: 0,
+    commissions: 0, pnl: 0, pnlPct: 0,
+    plan: 'no', emotion: 2, errorType: 'Нарушил план',
+    screenshot: '',
+    comment: 'Вышла вручную — не вижу смысла терять лишнее, с большой вероятностью сделка закроется по стопу. Надо было смотреть анализ на более старшем ТФ и видеть нисходящий тренд.'
+  },
+  {
+    id: 1004,
+    coin: 'ZBT', direction: 'short',
+    dateOpen: '2026-05-09', timeOpen: '21:18', dateClose: '',
+    exchange: 'OKX', tf: '1H', leverage: 5,
+    strategy: 'по индикаторам',
+    entries: [{ price: 0.126, vol: 0, type: 'Limit', time: '21:18' }],
+    sl: 0.13, slType: 'Безубыток после ТП1',
+    tps: [
+      { price: 0.1212, pct: 50, action: 'Перенос стопа в БУ' },
+      { price: 0.11, pct: 50, action: 'Закрыть всё' }
+    ],
+    exits: [],
+    status: 'open',
+    avgEntry: 0.126, avgExit: 0, totalVol: 0,
+    commissions: 0, pnl: 0, pnlPct: 0,
+    plan: 'yes', emotion: 3, errorType: '',
+    screenshot: '',
+    comment: 'После Тейк 1 передвинулся Стоп на точку входа.'
+  },
+  {
+    id: 1005,
+    coin: 'DYDX', direction: 'long',
+    dateOpen: '2026-05-10', timeOpen: '', dateClose: '',
+    exchange: 'OKX', tf: '1m', leverage: 5,
+    strategy: 'Индикатор scalping',
+    entries: [{ price: 0.186, vol: 0, type: 'Market', time: '' }],
+    sl: 0.186, slType: 'Фиксированный',
+    tps: [{ price: 0.1922, pct: 100, action: 'Закрыть всё' }],
+    exits: [{ price: 0.186, pct: 100, type: 'Market', reason: 'SL', time: '' }],
+    status: 'closed',
+    avgEntry: 0.186, avgExit: 0.186, totalVol: 0,
+    commissions: 0, pnl: 0, pnlPct: 0,
+    plan: 'yes', emotion: 3, errorType: '',
+    screenshot: '',
+    comment: 'ТФ — 1М, вход быстрый, стоп и тейк формировались после входа. Закрылась по стопу. Было интересно, но пока не очень понятно как при скальпинге на 1м рассчитывать сделку.'
+  },
+  {
+    id: 1006,
+    coin: 'SOL', direction: 'short',
+    dateOpen: '2026-05-05', timeOpen: '01:22', dateClose: '',
+    exchange: 'OKX', tf: '1H', leverage: 5,
+    strategy: 'по индикаторам',
+    entries: [{ price: 85.14, vol: 0, type: 'Limit', time: '01:22' }],
+    sl: 81.95, slType: 'Безубыток после ТП1',
+    tps: [
+      { price: 78.66, pct: 50, action: 'Перенос стопа в БУ' },
+      { price: 78.66, pct: 50, action: 'Закрыть всё' }
+    ],
+    exits: [],
+    status: 'open',
+    avgEntry: 85.14, avgExit: 0, totalVol: 0,
+    commissions: 0, pnl: 0, pnlPct: 0,
+    plan: 'yes', emotion: 3, errorType: '',
+    screenshot: '',
+    comment: 'После Тейк 1 передвинула Стоп на точку входа.'
+  }
+];
+
+// ===== INIT =====
+load();
+
+// Seed only if journal is empty
+if (trades.length === 0) {
+  trades = SEED_TRADES;
+  strategies = [
+    { name: 'по индикаторам', desc: 'Hull Suite + updown pump на 1H' },
+    { name: 'Индикатор scalping', desc: 'Быстрый вход на 1m по сигналу' },
+    { name: 'от балды', desc: 'Без чёткого сигнала — не использовать' },
+    { name: 'по теханализу', desc: 'Уровни поддержки/сопротивления, паттерны' },
+    { name: 'по ИИ', desc: 'Сигнал от AI-инструментов' },
+  ];
+  settings = { name: 'Ирина', deposit: 129.35, startDate: '2026-05-01', maxRisk: 2, targetRR: 2, maxDay: 3, maxMonth: 8, fee: 0.1 };
+  save();
+  loadSettingsToForm();
+}
+
+updateHeaderStats();
+renderTrades();
+document.getElementById('f-date-open').value = new Date().toISOString().slice(0,10);
+document.getElementById('f-time-open').value = new Date().toTimeString().slice(0,5);
+addEntryRow();
+addTpRow();
+</script>
+</body>
+</html>
