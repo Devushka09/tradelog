@@ -1213,22 +1213,18 @@ async function autoLoad() {
     if (!fileContent) return;
     const parsed = JSON.parse(fileContent);
 
-    // Берём данные из облака только если там больше сделок или они новее
-    const cloudTrades = parsed.trades || [];
-    const localTrades = trades;
-    if (cloudTrades.length >= localTrades.length) {
-      if (parsed.trades) trades = parsed.trades;
-      if (parsed.errors) errors = parsed.errors;
-      if (parsed.strategies) strategies = parsed.strategies;
-      if (parsed.settings) { settings = { ...settings, ...parsed.settings }; loadSettingsToForm(); }
-      save();
-      updateHeaderStats();
-      updateStrategyDatalist();
-      renderTrades();
-      const now = new Date().toISOString();
-      localStorage.setItem('tradelog_last_sync', now);
-      setSyncStatus('ok', 'Синхронизировано');
-    }
+    // Всегда берём данные из облака если токен настроен
+    if (parsed.trades) trades = parsed.trades;
+    if (parsed.errors) errors = parsed.errors;
+    if (parsed.strategies) strategies = parsed.strategies;
+    if (parsed.settings) { settings = { ...settings, ...parsed.settings }; loadSettingsToForm(); }
+    save();
+    updateHeaderStats();
+    updateStrategyDatalist();
+    renderTrades();
+    const now = new Date().toISOString();
+    localStorage.setItem('tradelog_last_sync', now);
+    setSyncStatus('ok', 'Синхронизировано');
   } catch(e) {
     // тихая ошибка
   }
