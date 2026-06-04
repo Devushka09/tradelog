@@ -1175,6 +1175,64 @@ function save() {
   localStorage.setItem('tradelog_settings', JSON.stringify(settings));
   localStorage.setItem('tradelog_strategies', JSON.stringify(strategies));
 }
+
+// Тихое автосохранение в облако (без уведомлений, в фоне)
+async function autoSync() {
+  const token = localStorage.getItem('tradelog_gh_token');
+  const gistId = localStorage.getItem('tradelog_gh_gist');
+  if (!token || !gistId) return; // не настроено — пропускаем
+  try {
+    const payload = JSON.stringify({ trades, errors, settings, strategies }, null, 2);
+    await fetch(`https://api.github.com/gists/${gistId}`, {
+      method: 'PATCH',
+      headers: getGistHeaders(token),
+      body: JSON.stringify({ files: { [GIST_FILENAME]: { content: payload } } })
+    });
+    const now = new Date().toISOString();
+    localStorage.setItem('tradelog_last_sync', now);
+    const timeEl = document.getElementById('sync-last-time');
+    if (timeEl) timeEl.textContent = 'Последняя синхр.: ' + new Date(now).toLocaleString('ru');
+    setSyncStatus('ok', 'Сохранено в облако');
+  } catch(e) {
+    // тихая ошибка — не мешаем работе
+  }
+}
+
+// Тихая загрузка из облака при старте
+async function autoLoad() {
+  const token = localStorage.getItem('tradelog_gh_token');
+  const gistId = localStorage.getItem('tradelog_gh_gist');
+  if (!token || !gistId) return;
+  try {
+    const resp = await fetch(`https://api.github.com/gists/${gistId}`, {
+      headers: getGistHeaders(token)
+    });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const fileContent = data.files?.[GIST_FILENAME]?.content;
+    if (!fileContent) return;
+    const parsed = JSON.parse(fileContent);
+
+    // Берём данные из облака только если там больше сделок или они новее
+    const cloudTrades = parsed.trades || [];
+    const localTrades = trades;
+    if (cloudTrades.length >= localTrades.length) {
+      if (parsed.trades) trades = parsed.trades;
+      if (parsed.errors) errors = parsed.errors;
+      if (parsed.strategies) strategies = parsed.strategies;
+      if (parsed.settings) { settings = { ...settings, ...parsed.settings }; loadSettingsToForm(); }
+      save();
+      updateHeaderStats();
+      updateStrategyDatalist();
+      renderTrades();
+      const now = new Date().toISOString();
+      localStorage.setItem('tradelog_last_sync', now);
+      setSyncStatus('ok', 'Синхронизировано');
+    }
+  } catch(e) {
+    // тихая ошибка
+  }
+}
 function load() {
   const t = localStorage.getItem('tradelog_trades');
   const e = localStorage.getItem('tradelog_errors');
@@ -1518,6 +1576,7 @@ function saveTrade() {
   resetForm();
   showTab('tab-journal');
   showToast('Сделка сохранена ✓', 'success');
+  autoSync();
 }
 
 // ===== RESET FORM =====
@@ -1758,6 +1817,7 @@ function confirmDelete() {
   renderTrades();
   closeModal('delete-modal');
   showToast('Сделка удалена', 'success');
+  autoSync();
 }
 
 // ===== STATS =====
@@ -1959,6 +2019,7 @@ function saveSettings() {
   save();
   updateHeaderStats();
   showToast('Настройки сохранены ✓', 'success');
+  autoSync();
 }
 
 // ===== HEADER STATS =====
@@ -2586,6 +2647,9 @@ document.getElementById('f-date-open').value = new Date().toISOString().slice(0,
 document.getElementById('f-time-open').value = new Date().toTimeString().slice(0,5);
 addEntryRow();
 addTpRow();
+
+// Автозагрузка из облака при старте (через 1 сек чтобы страница успела загрузиться)
+setTimeout(autoLoad, 1000);
 </script>
 </body>
 </html>
