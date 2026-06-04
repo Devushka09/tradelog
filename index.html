@@ -1040,6 +1040,7 @@
       <button class="btn btn-primary" onclick="saveSettings()">Сохранить настройки</button>
       <button class="btn btn-secondary" onclick="exportData()">Экспорт JSON</button>
       <button class="btn btn-secondary" onclick="importData()">Импорт JSON</button>
+      <button class="btn btn-secondary" onclick="resetToFile()" style="border-color:var(--accent3);color:var(--accent3)">↺ Сбросить к данным файла</button>
       <button class="btn btn-danger" onclick="clearAll()">Очистить все данные</button>
     </div>
 
@@ -2076,6 +2077,15 @@ function handleImport(e) {
   };
   reader.readAsText(file);
 }
+function resetToFile() {
+  if (!confirm('Сбросить все данные и загрузить актуальные сделки из файла?\n\nЭто перезапишет текущий журнал. Сначала сделай Экспорт JSON если хочешь сохранить копию.')) return;
+  localStorage.removeItem('tradelog_trades');
+  localStorage.removeItem('tradelog_errors');
+  localStorage.removeItem('tradelog_settings');
+  localStorage.removeItem('tradelog_strategies');
+  location.reload();
+}
+
 function clearAll() {
   if (!confirm('Удалить ВСЕ данные? Это нельзя отменить.')) return;
   trades = []; errors = [];
@@ -2336,22 +2346,27 @@ const SEED_TRADES = [
   {
     id: 1004,
     coin: 'ZBT', direction: 'short',
-    dateOpen: '2026-05-09', timeOpen: '21:18', dateClose: '',
-    exchange: 'OKX', tf: '1H', leverage: 5,
+    dateOpen: '2026-05-29', timeOpen: '21:18', dateClose: '2026-06-01',
+    exchange: 'MEXC', tf: '1H', leverage: 5,
     strategy: 'по индикаторам',
-    entries: [{ price: 0.126, vol: 0, type: 'Limit', time: '21:18' }],
+    entries: [{ price: 0.126, vol: 158, type: 'Limit', time: '21:18' }],
     sl: 0.13, slType: 'Безубыток после ТП1',
     tps: [
-      { price: 0.1212, pct: 50, action: 'Перенос стопа в БУ' },
-      { price: 0.11, pct: 50, action: 'Закрыть всё' }
+      { price: 0.1213, pct: 50, action: 'Перенос стопа в БУ' },
+      { price: 0.115, pct: 50, action: 'Закрыть всё' }
     ],
-    exits: [],
-    status: 'open',
-    avgEntry: 0.126, avgExit: 0, totalVol: 0,
-    commissions: 0, pnl: 0, pnlPct: 0,
-    plan: 'yes', emotion: 3, errorType: '',
+    exits: [
+      { price: 0.1213, pct: 50, type: 'Market', reason: 'TP', time: '04:29' },
+      { price: 0.1259, pct: 50, type: 'Market', reason: 'TP', time: '17:45' }
+    ],
+    status: 'closed',
+    avgEntry: 0.126, avgExit: 0.1236, totalVol: 158,
+    commissions: 0.0096,
+    pnl: 0.3792,
+    pnlPct: 0.293,
+    plan: 'yes', emotion: 4, errorType: '',
     screenshot: '',
-    comment: 'После Тейк 1 передвинулся Стоп на точку входа.'
+    comment: '2 частичных выхода: 31.05 @ 0.1213 (+0.37 USDT), 01.06 @ 0.1259 (+0.008 USDT). После ТП1 стоп перенесён в БУ. Итого PNL: +0.38 USDT. Комиссии: 0.0096 USDT.'
   },
   {
     id: 1005,
@@ -2373,24 +2388,156 @@ const SEED_TRADES = [
   {
     id: 1006,
     coin: 'SOL', direction: 'short',
-    dateOpen: '2026-05-05', timeOpen: '01:22', dateClose: '',
+    dateOpen: '2026-05-24', timeOpen: '22:22', dateClose: '2026-06-02',
     exchange: 'OKX', tf: '1H', leverage: 5,
     strategy: 'по индикаторам',
-    entries: [{ price: 85.14, vol: 0, type: 'Limit', time: '01:22' }],
-    sl: 81.95, slType: 'Безубыток после ТП1',
+    entries: [{ price: 85.18, vol: 0.20, type: 'Limit', time: '22:22' }],
+    sl: 88.0, slType: 'Безубыток после ТП1',
     tps: [
-      { price: 78.66, pct: 50, action: 'Перенос стопа в БУ' },
-      { price: 78.66, pct: 50, action: 'Закрыть всё' }
+      { price: 81.95, pct: 50, action: 'Перенос стопа в БУ' },
+      { price: 78.68, pct: 50, action: 'Закрыть всё' }
     ],
-    exits: [],
-    status: 'open',
-    avgEntry: 85.14, avgExit: 0, totalVol: 0,
-    commissions: 0, pnl: 0, pnlPct: 0,
+    exits: [
+      { price: 81.95, pct: 50, type: 'Market', reason: 'TP', time: '01:28' },
+      { price: 78.68, pct: 50, type: 'Market', reason: 'TP', time: '12:16' }
+    ],
+    status: 'closed',
+    avgEntry: 85.18, avgExit: 80.315, totalVol: 0.20,
+    commissions: 0.0222,
+    pnl: 0.9287,
+    pnlPct: 0.718,
+    plan: 'yes', emotion: 4, errorType: '',
+    screenshot: '',
+    comment: 'OKX Шорт 5x | Вход 24.05 @ 85.18 (0.20 SOL, Limit). TP1: 28.05 @ 81.95 закрыто 50% (+0.31 USDT). TP2: 02.06 @ 78.68 закрыто 50% (+0.64 USDT). После TP1 стоп перенесён в БУ. Итого PNL: +0.957 USDT. Funding: −0.006 USDT. Комиссии: 0.022 USDT. Чистый PNL: +0.929 USDT. R:R факт: 1:1.51'
+  },
+  {
+    id: 1007,
+    coin: 'GIGA', direction: 'long',
+    dateOpen: '2026-05-28', timeOpen: '22:08', dateClose: '2026-05-29',
+    exchange: 'MEXC', tf: '1H', leverage: 5,
+    strategy: 'по индикаторам',
+    entries: [
+      { price: 0.00339, vol: 5890, type: 'Limit', time: '22:08' },
+      { price: 0.00339, vol: 5890, type: 'Limit', time: '22:09' }
+    ],
+    sl: 0, slType: 'Фиксированный',
+    tps: [{ price: 0.00384, pct: 100, action: 'Закрыть всё' }],
+    exits: [{ price: 0.003217, pct: 100, type: 'Market', reason: 'SL', time: '16:00' }],
+    status: 'closed',
+    avgEntry: 0.00339, avgExit: 0.003217, totalVol: 11780,
+    commissions: 0.0249,
+    pnl: -2.0379,
+    pnlPct: -1.576,
+    plan: 'no', emotion: 2, errorType: 'Нарушил план',
+    screenshot: '',
+    comment: '2 входа по 0.00339 (итого 11780 монет, ~39.93 USDT). Выход 29.05 @ 0.003217. PNL по MEXC: −2.04 USDT. Комиссии: 0.0249 USDT. Усреднение — нарушение плана.'
+  },
+  {
+    id: 1008,
+    coin: 'ZBT', direction: 'long',
+    dateOpen: '2026-05-30', timeOpen: '18:29', dateClose: '2026-05-30',
+    exchange: 'MEXC', tf: '1H', leverage: 5,
+    strategy: 'по индикаторам',
+    entries: [{ price: 0.1261, vol: 158, type: 'Limit', time: '18:29' }],
+    sl: 0, slType: 'Фиксированный',
+    tps: [{ price: 0.13, pct: 100, action: 'Закрыть всё' }],
+    exits: [{ price: 0.1259, pct: 100, type: 'Market', reason: 'SL', time: '18:30' }],
+    status: 'closed',
+    avgEntry: 0.1261, avgExit: 0.1259, totalVol: 158,
+    commissions: 0.0098,
+    pnl: -0.0316,
+    pnlPct: -0.024,
     plan: 'yes', emotion: 3, errorType: '',
     screenshot: '',
-    comment: 'После Тейк 1 передвинула Стоп на точку входа.'
+    comment: 'Вход @ 0.1261, выход @ 0.1259 в тот же день. PNL по MEXC: −0.03 USDT. Комиссии: 0.0098 USDT.'
+  },
+  {
+    id: 1009,
+    coin: 'ZBT', direction: 'short',
+    dateOpen: '2026-05-29', timeOpen: '21:18', dateClose: '2026-06-01',
+    exchange: 'MEXC', tf: '1H', leverage: 5,
+    strategy: 'по индикаторам',
+    entries: [{ price: 0.126, vol: 158, type: 'Limit', time: '21:18' }],
+    sl: 0, slType: 'Безубыток после ТП1',
+    tps: [
+      { price: 0.1213, pct: 50, action: 'Перенос стопа в БУ' },
+      { price: 0.115, pct: 50, action: 'Закрыть всё' }
+    ],
+    exits: [
+      { price: 0.1213, pct: 50, type: 'Market', reason: 'TP', time: '04:29' },
+      { price: 0.1259, pct: 50, type: 'Market', reason: 'TP', time: '17:45' }
+    ],
+    status: 'closed',
+    avgEntry: 0.126, avgExit: 0.1236, totalVol: 158,
+    commissions: 0.0096,
+    pnl: 0.3792,
+    pnlPct: 0.293,
+    plan: 'yes', emotion: 4, errorType: '',
+    screenshot: '',
+    comment: '2 частичных выхода: 31.05 @ 0.1213 (+0.37 USDT), 01.06 @ 0.1259 (+0.008 USDT). Итого PNL: +0.38 USDT. Комиссии: 0.0096 USDT.'
+  },
+  {
+    id: 1010,
+    coin: 'DYDX', direction: 'long',
+    dateOpen: '2026-05-30', timeOpen: '18:30', dateClose: '2026-05-30',
+    exchange: 'MEXC', tf: '1H', leverage: 5,
+    strategy: 'по индикаторам',
+    entries: [{ price: 0.1895, vol: 105, type: 'Limit', time: '18:30' }],
+    sl: 0, slType: 'Фиксированный',
+    tps: [{ price: 0.20, pct: 100, action: 'Закрыть всё' }],
+    exits: [{ price: 0.1857, pct: 100, type: 'Market', reason: 'SL', time: '19:06' }],
+    status: 'closed',
+    avgEntry: 0.1895, avgExit: 0.1857, totalVol: 105,
+    commissions: 0.0156,
+    pnl: -0.399,
+    pnlPct: -0.309,
+    plan: 'yes', emotion: 3, errorType: '',
+    screenshot: '',
+    comment: 'Вход @ 0.1895, выход @ 0.1857 в тот же день. PNL по MEXC: −0.40 USDT. Комиссии: 0.0156 USDT.'
+  },
+  {
+    id: 1011,
+    coin: 'DYDX', direction: 'short',
+    dateOpen: '2026-06-03', timeOpen: '13:10', dateClose: '',
+    exchange: 'MEXC', tf: '1H', leverage: 5,
+    strategy: 'по индикаторам',
+    entries: [{ price: 0.1751, vol: 57, type: 'Limit', time: '13:10' }],
+    sl: 0, slType: 'Фиксированный',
+    tps: [{ price: 0.16, pct: 100, action: 'Закрыть всё' }],
+    exits: [],
+    status: 'open',
+    avgEntry: 0.1751, avgExit: 0, totalVol: 57,
+    commissions: 0.0039,
+    pnl: 0, pnlPct: 0,
+    plan: 'yes', emotion: 3, errorType: '',
+    screenshot: '',
+    comment: 'Вход @ 0.1751, объём 9.98 USDT. Позиция открыта.'
+  },
+  {
+    id: 1012,
+    coin: 'COMP', direction: 'long',
+    dateOpen: '2026-06-03', timeOpen: '13:16', dateClose: '',
+    exchange: 'MEXC', tf: '1H', leverage: 5,
+    strategy: 'по индикаторам',
+    entries: [
+      { price: 18.26, vol: 0.53, type: 'Limit', time: '13:16' },
+      { price: 17.85, vol: 0.56, type: 'Limit', time: '16:45' }
+    ],
+    sl: 0, slType: 'Фиксированный',
+    tps: [{ price: 20.0, pct: 100, action: 'Закрыть всё' }],
+    exits: [],
+    status: 'open',
+    avgEntry: 18.047, avgExit: 0, totalVol: 1.09,
+    commissions: 0.0018,
+    pnl: 0, pnlPct: 0,
+    plan: 'yes', emotion: 3, errorType: '',
+    screenshot: '',
+    comment: '2 входа: 03.06 @ 18.26 (9.68 USDT) и 03.06 @ 17.85 (10.00 USDT). Ср. цена входа: 18.05. Позиция открыта.'
   }
 ];
+
+// ===== NEW TRADES FROM MEXC (to merge into existing journal) =====
+const NEW_TRADE_IDS = [1007, 1008, 1009, 1010, 1011, 1012];
 
 // ===== INIT =====
 load();
@@ -2408,6 +2555,29 @@ if (trades.length === 0) {
   settings = { name: 'Ирина', deposit: 129.35, startDate: '2026-05-01', maxRisk: 2, targetRR: 2, maxDay: 3, maxMonth: 8, fee: 0.1 };
   save();
   loadSettingsToForm();
+} else {
+  // Merge new trades if not already present
+  const existingIds = new Set(trades.map(t => t.id));
+  const toAdd = SEED_TRADES.filter(t => NEW_TRADE_IDS.includes(t.id) && !existingIds.has(t.id));
+  if (toAdd.length > 0) {
+    trades = [...toAdd, ...trades];
+  }
+
+  // Force-fix SOL trade (id 1006) — update to closed with correct data
+  const solIdx = trades.findIndex(t => t.id === 1006);
+  const solCorrect = SEED_TRADES.find(t => t.id === 1006);
+  if (solIdx >= 0 && solCorrect && trades[solIdx].status === 'open') {
+    trades[solIdx] = solCorrect;
+  }
+
+  // Force-fix ZBT trade (id 1004) — update to closed with correct data
+  const zbtIdx = trades.findIndex(t => t.id === 1004);
+  const zbtCorrect = SEED_TRADES.find(t => t.id === 1004);
+  if (zbtIdx >= 0 && zbtCorrect && trades[zbtIdx].status === 'open') {
+    trades[zbtIdx] = zbtCorrect;
+  }
+
+  save();
 }
 
 updateHeaderStats();
