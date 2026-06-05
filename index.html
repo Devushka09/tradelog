@@ -708,10 +708,7 @@
 <header class="header">
   <div class="logo">⬡ TradeLog</div>
   <div class="header-stats">
-    <div class="stat-pill">
-      <span class="label">Депозит</span>
-      <span class="value neutral" id="hdr-deposit">$0</span>
-    </div>
+    <div class="stat-pill" id="hdr-exchange-deposits" style="display:flex;gap:16px;align-items:center"></div>
     <div class="stat-pill">
       <span class="label">P&L всего</span>
       <span class="value neutral" id="hdr-pnl">$0</span>
@@ -1023,6 +1020,20 @@
       </div>
     </div>
 
+    <!-- EXCHANGE DEPOSITS SECTION -->
+    <div class="settings-section" style="margin-top:20px">
+      <h3>💰 Депозиты по биржам</h3>
+      <p style="font-size:11px;color:var(--text3);margin-bottom:16px;line-height:1.6">
+        Отображаются в шапке журнала. Добавляй биржи и указывай текущий депозит на каждой.
+      </p>
+      <div id="exchange-deposits-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="text" id="s-new-exchange" placeholder="Название биржи..." style="max-width:180px" onkeydown="if(event.key==='Enter')addExchangeDeposit()">
+        <input type="number" id="s-new-exchange-dep" placeholder="Депозит USD" style="max-width:140px" onkeydown="if(event.key==='Enter')addExchangeDeposit()">
+        <button class="btn btn-primary" onclick="addExchangeDeposit()">+ Добавить</button>
+      </div>
+    </div>
+
     <!-- STRATEGIES SECTION -->
     <div class="settings-section" style="margin-top:20px">
       <h3>Мои стратегии / Сетапы</h3>
@@ -1159,6 +1170,7 @@
 let trades = [];
 let errors = [];
 let strategies = [];
+let exchangeDeposits = []; // [{name, deposit}]
 let settings = {
   name: '', deposit: 1000, startDate: '',
   maxRisk: 1, targetRR: 2, maxDay: 3, maxMonth: 8, fee: 0.1
@@ -1174,6 +1186,7 @@ function save() {
   localStorage.setItem('tradelog_errors', JSON.stringify(errors));
   localStorage.setItem('tradelog_settings', JSON.stringify(settings));
   localStorage.setItem('tradelog_strategies', JSON.stringify(strategies));
+  localStorage.setItem('tradelog_exchange_deposits', JSON.stringify(exchangeDeposits));
 }
 
 // Тихое автосохранение в облако (без уведомлений, в фоне)
@@ -1182,7 +1195,7 @@ async function autoSync() {
   const gistId = localStorage.getItem('tradelog_gh_gist');
   if (!token || !gistId) return; // не настроено — пропускаем
   try {
-    const payload = JSON.stringify({ trades, errors, settings, strategies }, null, 2);
+    const payload = JSON.stringify({ trades, errors, settings, strategies, exchangeDeposits }, null, 2);
     await fetch(`https://api.github.com/gists/${gistId}`, {
       method: 'PATCH',
       headers: getGistHeaders(token),
@@ -1217,6 +1230,7 @@ async function autoLoad() {
     if (parsed.trades) trades = parsed.trades;
     if (parsed.errors) errors = parsed.errors;
     if (parsed.strategies) strategies = parsed.strategies;
+    if (parsed.exchangeDeposits) exchangeDeposits = parsed.exchangeDeposits;
     if (parsed.settings) { settings = { ...settings, ...parsed.settings }; loadSettingsToForm(); }
     save();
     updateHeaderStats();
@@ -1234,10 +1248,12 @@ function load() {
   const e = localStorage.getItem('tradelog_errors');
   const s = localStorage.getItem('tradelog_settings');
   const st = localStorage.getItem('tradelog_strategies');
+  const ed = localStorage.getItem('tradelog_exchange_deposits');
   if (t) trades = JSON.parse(t);
   if (e) errors = JSON.parse(e);
   if (s) settings = { ...settings, ...JSON.parse(s) };
   if (st) strategies = JSON.parse(st);
+  if (ed) exchangeDeposits = JSON.parse(ed);
   loadSettingsToForm();
   updateStrategyDatalist();
 }
@@ -1252,7 +1268,7 @@ function showTab(id) {
   if (id === 'tab-journal') renderTrades();
   if (id === 'tab-stats') renderStats();
   if (id === 'tab-errors') renderErrors();
-  if (id === 'tab-settings') { renderStrategiesList(); loadGistConfig(); }
+  if (id === 'tab-settings') { renderStrategiesList(); renderExchangeDepositsList(); loadGistConfig(); }
   if (id === 'tab-new' && !editingId) { resetForm(); addEntryRow(); addTpRow(); }
 }
 
@@ -2024,12 +2040,81 @@ function updateHeaderStats() {
   const totalPnl = closed.reduce((s,t) => s+t.pnl, 0);
   const profitable = closed.filter(t => t.pnl > 0);
   const wr = closed.length > 0 ? (profitable.length/closed.length*100) : 0;
-  document.getElementById('hdr-deposit').textContent = `$${settings.deposit.toFixed(2)}`;
+
+  // Exchange deposits in header
+  const depContainer = document.getElementById('hdr-exchange-deposits');
+  if (depContainer) {
+    if (exchangeDeposits.length === 0) {
+      depContainer.innerHTML = `<div class="stat-pill"><span class="label">Депозит</span><span class="value neutral">$${settings.deposit.toFixed(2)}</span></div>`;
+    } else {
+      depContainer.innerHTML = exchangeDeposits.map(ed => `
+        <div class="stat-pill">
+          <span class="label">${ed.name}</span>
+          <span class="value neutral">$${parseFloat(ed.deposit||0).toFixed(2)}</span>
+        </div>`).join('');
+    }
+  }
+
   const pnlEl = document.getElementById('hdr-pnl');
   pnlEl.textContent = `${totalPnl>=0?'+':''}$${totalPnl.toFixed(2)}`;
   pnlEl.className = `value ${totalPnl>0?'pos':totalPnl<0?'neg':'neutral'}`;
   document.getElementById('hdr-wr').textContent = `${wr.toFixed(1)}%`;
   document.getElementById('hdr-count').textContent = trades.length;
+}
+
+// ===== EXCHANGE DEPOSITS =====
+const EXCHANGE_COLORS = ['#0a7c55','#0072b8','#c47d00','#7050c8','#c0392b','#16a085'];
+
+function renderExchangeDepositsList() {
+  const container = document.getElementById('exchange-deposits-list');
+  if (!container) return;
+  if (exchangeDeposits.length === 0) {
+    container.innerHTML = `<div style="font-size:11px;color:var(--text3);padding:6px 0">Список пуст. Добавь биржи ниже.</div>`;
+    return;
+  }
+  container.innerHTML = exchangeDeposits.map((ed, i) => `
+    <div class="strategy-item">
+      <div class="s-color" style="background:${EXCHANGE_COLORS[i % EXCHANGE_COLORS.length]}"></div>
+      <input class="s-name" value="${escHtml(ed.name)}" placeholder="Биржа"
+        onchange="updateExchangeDeposit(${i},'name',this.value)" style="max-width:150px">
+      <span style="font-size:11px;color:var(--text3);padding:0 4px">$</span>
+      <input class="s-desc" type="number" value="${ed.deposit||0}" placeholder="0.00" step="0.01"
+        onchange="updateExchangeDeposit(${i},'deposit',this.value)" style="max-width:120px">
+      <button class="btn btn-danger btn-sm btn-icon" onclick="removeExchangeDeposit(${i})" title="Удалить">✕</button>
+    </div>`).join('');
+}
+
+function addExchangeDeposit() {
+  const name = document.getElementById('s-new-exchange').value.trim();
+  const dep = parseFloat(document.getElementById('s-new-exchange-dep').value) || 0;
+  if (!name) { showToast('Введи название биржи', 'error'); return; }
+  exchangeDeposits.push({ name, deposit: dep });
+  document.getElementById('s-new-exchange').value = '';
+  document.getElementById('s-new-exchange-dep').value = '';
+  save();
+  renderExchangeDepositsList();
+  updateHeaderStats();
+  autoSync();
+  showToast(`${name} добавлена ✓`, 'success');
+}
+
+function updateExchangeDeposit(i, field, value) {
+  if (exchangeDeposits[i]) {
+    exchangeDeposits[i][field] = field === 'deposit' ? parseFloat(value)||0 : value.trim();
+    save();
+    updateHeaderStats();
+    autoSync();
+  }
+}
+
+function removeExchangeDeposit(i) {
+  const name = exchangeDeposits[i]?.name || '';
+  exchangeDeposits.splice(i, 1);
+  save();
+  renderExchangeDepositsList();
+  updateHeaderStats();
+  autoSync();
+  showToast(`${name} удалена`, 'success');
 }
 
 function updateStrategyDatalist() {
@@ -2107,7 +2192,7 @@ function showToast(msg, type='') {
 }
 
 function exportData() {
-  const data = { trades, errors, settings, strategies };
+  const data = { trades, errors, settings, strategies, exchangeDeposits };
   const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -2125,6 +2210,7 @@ function handleImport(e) {
       if (data.trades) trades = data.trades;
       if (data.errors) errors = data.errors;
       if (data.strategies) strategies = data.strategies;
+      if (data.exchangeDeposits) exchangeDeposits = data.exchangeDeposits;
       if (data.settings) { settings = {...settings, ...data.settings}; loadSettingsToForm(); }
       save();
       updateHeaderStats();
@@ -2608,6 +2694,10 @@ if (trades.length === 0) {
     { name: 'от балды', desc: 'Без чёткого сигнала — не использовать' },
     { name: 'по теханализу', desc: 'Уровни поддержки/сопротивления, паттерны' },
     { name: 'по ИИ', desc: 'Сигнал от AI-инструментов' },
+  ];
+  exchangeDeposits = [
+    { name: 'OKX', deposit: 50.00 },
+    { name: 'MEXC', deposit: 79.35 },
   ];
   settings = { name: 'Ирина', deposit: 129.35, startDate: '2026-05-01', maxRisk: 2, targetRR: 2, maxDay: 3, maxMonth: 8, fee: 0.1 };
   save();
