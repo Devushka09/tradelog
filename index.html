@@ -256,7 +256,7 @@
   }
   .entry-row { grid-template-columns: auto 1fr 1fr 1fr 1fr 36px; }
   .tp-row { grid-template-columns: auto 1fr 1fr 1fr 1fr 36px; }
-  .exit-row { grid-template-columns: auto 1fr 1fr 1fr 1fr 1fr 36px; }
+  .exit-row { grid-template-columns: auto 1fr 1fr 1fr 1fr 1fr 1fr 36px; }
   .row-num {
     font-size: 10px;
     color: var(--text3);
@@ -1363,8 +1363,12 @@ function addExitRow() {
       <input type="number" id="ex-price-${n}" step="any" placeholder="0.00" oninput="recalcPnl()">
     </div>
     <div class="form-group">
+      <label>Объём (монет)</label>
+      <input type="number" id="ex-vol-${n}" step="any" placeholder="если знаешь" oninput="recalcPnl()">
+    </div>
+    <div class="form-group">
       <label>% позиции</label>
-      <input type="number" id="ex-pct-${n}" step="any" placeholder="100" oninput="recalcPnl()">
+      <input type="number" id="ex-pct-${n}" step="any" placeholder="если нет объёма" oninput="recalcPnl()">
     </div>
     <div class="form-group">
       <label>Тип ордера</label>
@@ -1418,12 +1422,13 @@ function getExits() {
     const n = row.id.replace('exit-row-','');
     return {
       price: parseFloat(document.getElementById(`ex-price-${n}`)?.value) || 0,
+      vol: parseFloat(document.getElementById(`ex-vol-${n}`)?.value) || 0,
       pct: parseFloat(document.getElementById(`ex-pct-${n}`)?.value) || 0,
       type: document.getElementById(`ex-type-${n}`)?.value || '',
       reason: document.getElementById(`ex-reason-${n}`)?.value || '',
       time: document.getElementById(`ex-time-${n}`)?.value || ''
     };
-  }).filter(e => e.price > 0 && e.pct > 0);
+  }).filter(e => e.price > 0 && (e.vol > 0 || e.pct > 0));
 }
 
 function getTPs() {
@@ -1455,11 +1460,12 @@ function recalcPnl() {
   // Show avg entry
   document.getElementById('pv-avg-entry').textContent = avgEntry > 0 ? avgEntry.toFixed(6).replace(/\.?0+$/, '') : '—';
 
-  // Average exit
+  // Average exit — use real volume if provided, otherwise calculate from %
   let exitVol = 0, exitCost = 0;
   if (exits.length > 0 && status === 'closed') {
     exits.forEach(ex => {
-      const vol = totalVol * ex.pct / 100;
+      // Prefer real volume, fall back to % of total
+      const vol = ex.vol > 0 ? ex.vol : (totalVol * ex.pct / 100);
       exitVol += vol;
       exitCost += ex.price * vol;
     });
@@ -1539,7 +1545,7 @@ function saveTrade() {
 
   let exitVol = 0, exitCost = 0;
   exits.forEach(ex => {
-    const vol = totalVol * ex.pct / 100;
+    const vol = ex.vol > 0 ? ex.vol : (totalVol * ex.pct / 100);
     exitVol += vol;
     exitCost += ex.price * vol;
   });
@@ -1663,7 +1669,7 @@ function renderTrades() {
 
     // Exits sub-table
     const exitsHtml = t.exits.map((e,j) => `
-      <tr><td>#${j+1}</td><td>${e.price}</td><td>${e.pct}%</td><td>${e.reason}</td><td>${e.time||'—'}</td></tr>`).join('');
+      <tr><td>#${j+1}</td><td>${e.price}</td><td>${e.vol > 0 ? e.vol + ' монет' : (e.pct||'—') + '%'}</td><td>${e.reason}</td><td>${e.time||'—'}</td></tr>`).join('');
 
     const planIcon = {yes:'✓ Да', partial:'⚠ Частично', no:'✗ Нет'}[t.plan] || '';
 
@@ -1808,6 +1814,7 @@ function editTrade(id) {
       addExitRow();
       const n = exitCount;
       document.getElementById(`ex-price-${n}`).value = ex.price||'';
+      if (document.getElementById(`ex-vol-${n}`)) document.getElementById(`ex-vol-${n}`).value = ex.vol||'';
       document.getElementById(`ex-pct-${n}`).value = ex.pct||'';
       if (document.getElementById(`ex-type-${n}`)) document.getElementById(`ex-type-${n}`).value = ex.type||'Market';
       if (document.getElementById(`ex-reason-${n}`)) document.getElementById(`ex-reason-${n}`).value = ex.reason||'TP';
