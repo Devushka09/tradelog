@@ -1235,6 +1235,7 @@ async function autoLoad() {
     save();
     updateHeaderStats();
     updateStrategyDatalist();
+    renderExchangeDepositsList();
     renderTrades();
     const now = new Date().toISOString();
     localStorage.setItem('tradelog_last_sync', now);
@@ -2041,17 +2042,23 @@ function updateHeaderStats() {
   const profitable = closed.filter(t => t.pnl > 0);
   const wr = closed.length > 0 ? (profitable.length/closed.length*100) : 0;
 
-  // Exchange deposits in header
+  // Exchange deposits in header — current = initial + PnL from closed trades on that exchange
   const depContainer = document.getElementById('hdr-exchange-deposits');
   if (depContainer) {
     if (exchangeDeposits.length === 0) {
       depContainer.innerHTML = `<div class="stat-pill"><span class="label">Депозит</span><span class="value neutral">$${settings.deposit.toFixed(2)}</span></div>`;
     } else {
-      depContainer.innerHTML = exchangeDeposits.map(ed => `
-        <div class="stat-pill">
+      depContainer.innerHTML = exchangeDeposits.map(ed => {
+        const exchangePnl = closed
+          .filter(t => t.exchange && t.exchange.toUpperCase() === ed.name.toUpperCase())
+          .reduce((s,t) => s + t.pnl, 0);
+        const current = parseFloat(ed.deposit||0) + exchangePnl;
+        const pnlClass = exchangePnl > 0 ? 'pos' : exchangePnl < 0 ? 'neg' : 'neutral';
+        return `<div class="stat-pill" title="Начальный: $${parseFloat(ed.deposit||0).toFixed(2)} | P&L: ${exchangePnl>=0?'+':''}$${exchangePnl.toFixed(2)}">
           <span class="label">${ed.name}</span>
-          <span class="value neutral">$${parseFloat(ed.deposit||0).toFixed(2)}</span>
-        </div>`).join('');
+          <span class="value ${pnlClass}">$${current.toFixed(2)}</span>
+        </div>`;
+      }).join('');
     }
   }
 
@@ -2072,16 +2079,37 @@ function renderExchangeDepositsList() {
     container.innerHTML = `<div style="font-size:11px;color:var(--text3);padding:6px 0">Список пуст. Добавь биржи ниже.</div>`;
     return;
   }
-  container.innerHTML = exchangeDeposits.map((ed, i) => `
-    <div class="strategy-item">
+  const closed = trades.filter(t => t.status === 'closed');
+  container.innerHTML = exchangeDeposits.map((ed, i) => {
+    const exchangePnl = closed
+      .filter(t => t.exchange && t.exchange.toUpperCase() === ed.name.toUpperCase())
+      .reduce((s,t) => s + t.pnl, 0);
+    const current = parseFloat(ed.deposit||0) + exchangePnl;
+    const pnlClass = exchangePnl > 0 ? 'color:var(--green)' : exchangePnl < 0 ? 'color:var(--red)' : 'color:var(--text3)';
+    return `<div class="strategy-item" style="align-items:center">
       <div class="s-color" style="background:${EXCHANGE_COLORS[i % EXCHANGE_COLORS.length]}"></div>
       <input class="s-name" value="${escHtml(ed.name)}" placeholder="Биржа"
-        onchange="updateExchangeDeposit(${i},'name',this.value)" style="max-width:150px">
-      <span style="font-size:11px;color:var(--text3);padding:0 4px">$</span>
-      <input class="s-desc" type="number" value="${ed.deposit||0}" placeholder="0.00" step="0.01"
-        onchange="updateExchangeDeposit(${i},'deposit',this.value)" style="max-width:120px">
-      <button class="btn btn-danger btn-sm btn-icon" onclick="removeExchangeDeposit(${i})" title="Удалить">✕</button>
-    </div>`).join('');
+        onchange="updateExchangeDeposit(${i},'name',this.value)" style="max-width:100px">
+      <div style="display:flex;flex-direction:column;gap:1px;min-width:140px">
+        <span style="font-size:9px;color:var(--text3);letter-spacing:1px;text-transform:uppercase">Начальный депозит</span>
+        <div style="display:flex;align-items:center;gap:4px">
+          <span style="font-size:11px;color:var(--text3)">$</span>
+          <input type="number" value="${ed.deposit||0}" placeholder="0.00" step="0.01"
+            onchange="updateExchangeDeposit(${i},'deposit',this.value)"
+            style="width:90px;font-size:12px;padding:4px 6px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:var(--font-mono)">
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:1px;min-width:130px">
+        <span style="font-size:9px;color:var(--text3);letter-spacing:1px;text-transform:uppercase">Текущий (авто)</span>
+        <span style="font-size:13px;font-weight:700;color:var(--text)">$${current.toFixed(2)}</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:1px">
+        <span style="font-size:9px;color:var(--text3);letter-spacing:1px;text-transform:uppercase">P&L</span>
+        <span style="font-size:11px;font-weight:600;${pnlClass}">${exchangePnl>=0?'+':''}$${exchangePnl.toFixed(2)}</span>
+      </div>
+      <button class="btn btn-danger btn-sm btn-icon" onclick="removeExchangeDeposit(${i})" title="Удалить" style="margin-left:auto">✕</button>
+    </div>`;
+  }).join('');
 }
 
 function addExchangeDeposit() {
