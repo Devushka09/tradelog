@@ -736,9 +736,22 @@
 
   <!-- ===== JOURNAL TAB ===== -->
   <div class="panel active" id="tab-journal">
-    <div class="trades-toolbar">
+    <div class="trades-toolbar" style="flex-wrap:wrap;gap:10px">
       <span style="font-size:11px;color:var(--text3)">Все сделки</span>
-      <div class="filter-pills">
+      <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
+        <label style="font-size:9px;color:var(--text3);letter-spacing:1px;text-transform:uppercase">Сортировка:</label>
+        <select id="sort-select" onchange="changeSort(this.value)" style="width:auto;font-size:11px;padding:5px 8px">
+          <option value="num-desc">Сначала новые (№)</option>
+          <option value="num-asc">Сначала старые (№)</option>
+          <option value="date-desc">Дата закрытия ↓ (новые)</option>
+          <option value="date-asc">Дата закрытия ↑ (старые)</option>
+          <option value="coin-asc">По алфавиту А→Я</option>
+          <option value="coin-desc">По алфавиту Я→А</option>
+          <option value="pnl-desc">P&L по убыванию</option>
+          <option value="pnl-asc">P&L по возрастанию</option>
+        </select>
+      </div>
+      <div class="filter-pills" style="margin-left:0">
         <button class="filter-pill active" onclick="filterTrades('all',this)">Все</button>
         <button class="filter-pill" onclick="filterTrades('open',this)">Открытые</button>
         <button class="filter-pill" onclick="filterTrades('profit',this)">Прибыльные</button>
@@ -1179,6 +1192,7 @@ let formDirection = 'long';
 let editingId = null;
 let deleteId = null;
 let currentFilter = 'all';
+let currentSort = 'num-desc';
 
 // ===== STORAGE =====
 function save() {
@@ -1669,6 +1683,21 @@ function renderTrades() {
     else if (currentFilter === 'short') filtered = trades.filter(t => t.direction === 'short');
   }
 
+  // Sorting
+  filtered = [...filtered].sort((a, b) => {
+    switch (currentSort) {
+      case 'num-asc':  return trades.indexOf(a) - trades.indexOf(b);
+      case 'num-desc': return trades.indexOf(b) - trades.indexOf(a);
+      case 'date-asc':  return (a.dateClose||'').localeCompare(b.dateClose||'');
+      case 'date-desc': return (b.dateClose||'').localeCompare(a.dateClose||'');
+      case 'coin-asc':  return (a.coin||'').localeCompare(b.coin||'');
+      case 'coin-desc': return (b.coin||'').localeCompare(a.coin||'');
+      case 'pnl-asc':  return (a.pnl||0) - (b.pnl||0);
+      case 'pnl-desc': return (b.pnl||0) - (a.pnl||0);
+      default: return 0;
+    }
+  });
+
   if (filtered.length === 0) {
     container.innerHTML = `<div class="empty-state"><div class="icon">📂</div><p>Здесь пока пусто.<br>Добавь первую сделку через вкладку <strong>+ Новая сделка</strong></p></div>`;
     return;
@@ -1787,6 +1816,11 @@ function filterTrades(f, el) {
   currentFilter = f;
   document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
   el.classList.add('active');
+  renderTrades();
+}
+
+function changeSort(value) {
+  currentSort = value;
   renderTrades();
 }
 
@@ -2020,34 +2054,64 @@ function renderErrors() {
       <td><span class="tag ${tagClass[e.type]||''}">${tagLabel[e.type]||e.type}</span></td>
       <td>${e.what||''}</td>
       <td>${e.rule||''}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="deleteError(${i})">✕</button></td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-secondary btn-sm" onclick="editError(${i})" style="margin-right:4px">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteError(${i})">✕</button>
+      </td>
     </tr>`).join('');
 }
 
+let editingErrorIdx = null;
+
 function showErrorModal() {
+  editingErrorIdx = null;
+  document.querySelector('#error-modal .modal-title').textContent = 'Запись об ошибке';
   document.getElementById('em-date').value = new Date().toISOString().slice(0,10);
   document.getElementById('em-trade-num').value = '';
+  document.getElementById('em-type').value = 'entry';
   document.getElementById('em-what').value = '';
   document.getElementById('em-rule').value = '';
   document.getElementById('error-modal').classList.add('active');
 }
+
+function editError(i) {
+  const e = errors[i];
+  if (!e) return;
+  editingErrorIdx = i;
+  document.querySelector('#error-modal .modal-title').textContent = 'Редактирование записи';
+  document.getElementById('em-date').value = e.date || '';
+  document.getElementById('em-trade-num').value = e.tradeNum || '';
+  document.getElementById('em-type').value = e.type || 'entry';
+  document.getElementById('em-what').value = e.what || '';
+  document.getElementById('em-rule').value = e.rule || '';
+  document.getElementById('error-modal').classList.add('active');
+}
+
 function saveError() {
-  errors.push({
+  const entry = {
     date: document.getElementById('em-date').value,
     tradeNum: document.getElementById('em-trade-num').value,
     type: document.getElementById('em-type').value,
     what: document.getElementById('em-what').value,
     rule: document.getElementById('em-rule').value
-  });
+  };
+  if (editingErrorIdx !== null) {
+    errors[editingErrorIdx] = entry;
+    editingErrorIdx = null;
+  } else {
+    errors.push(entry);
+  }
   save();
   renderErrors();
   closeModal('error-modal');
-  showToast('Запись добавлена ✓', 'success');
+  showToast('Запись сохранена ✓', 'success');
+  autoSync();
 }
 function deleteError(i) {
   errors.splice(i,1);
   save();
   renderErrors();
+  autoSync();
 }
 
 // ===== SETTINGS =====
