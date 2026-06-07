@@ -254,7 +254,7 @@
     border-radius: var(--radius-sm);
     padding: 12px;
   }
-  .entry-row { grid-template-columns: auto 1fr 1fr 1fr 1fr 36px; }
+  .entry-row { grid-template-columns: auto 1fr 1fr 1fr 1fr 1fr 36px; }
   .tp-row { grid-template-columns: auto 1fr 1fr 1fr 1fr 36px; }
   .exit-row { grid-template-columns: auto 1fr 1fr 1fr 1fr 1fr 1fr 36px; }
   .row-num {
@@ -1300,8 +1300,12 @@ function addEntryRow() {
       <input type="number" id="e-price-${n}" step="any" placeholder="0.00" oninput="recalcPnl()">
     </div>
     <div class="form-group">
-      <label>Объём (монет / USDT)</label>
-      <input type="number" id="e-vol-${n}" step="any" placeholder="0.00" oninput="recalcPnl()">
+      <label>Сумма (USDT)</label>
+      <input type="number" id="e-usdt-${n}" step="any" placeholder="напр. 22" oninput="recalcPnl()">
+    </div>
+    <div class="form-group">
+      <label>Объём (монет)</label>
+      <input type="number" id="e-vol-${n}" step="any" placeholder="или монеты" oninput="recalcPnl()">
     </div>
     <div class="form-group">
       <label>Тип ордера</label>
@@ -1411,9 +1415,15 @@ function getEntries() {
   const rows = document.querySelectorAll('#entries-container .entry-row');
   return Array.from(rows).map(row => {
     const n = row.id.replace('entry-row-','');
+    const price = parseFloat(document.getElementById(`e-price-${n}`)?.value) || 0;
+    const usdt = parseFloat(document.getElementById(`e-usdt-${n}`)?.value) || 0;
+    const volInput = parseFloat(document.getElementById(`e-vol-${n}`)?.value) || 0;
+    // Объём в монетах: если задан USDT — пересчитываем, иначе берём монеты напрямую
+    const vol = usdt > 0 && price > 0 ? usdt / price : volInput;
     return {
-      price: parseFloat(document.getElementById(`e-price-${n}`)?.value) || 0,
-      vol: parseFloat(document.getElementById(`e-vol-${n}`)?.value) || 0,
+      price,
+      usdt,
+      vol,
       type: document.getElementById(`e-type-${n}`)?.value || '',
       time: document.getElementById(`e-time-${n}`)?.value || ''
     };
@@ -1674,8 +1684,10 @@ function renderTrades() {
     const dirTxt = t.direction === 'long' ? 'ЛОНГ' : 'ШОРТ';
 
     // Entries sub-table
-    const entriesHtml = t.entries.map((e,j) => `
-      <tr><td>#${j+1}</td><td>${e.price}</td><td>${e.vol}</td><td>${e.type}</td><td>${e.time||'—'}</td></tr>`).join('');
+    const entriesHtml = t.entries.map((e,j) => {
+      const amt = e.usdt > 0 ? e.usdt + ' USDT' : e.vol + ' монет';
+      return `<tr><td>#${j+1}</td><td>${e.price}</td><td>${amt}</td><td>${e.type}</td><td>${e.time||'—'}</td></tr>`;
+    }).join('');
 
     // TPs sub-table
     const tpsHtml = t.tps.filter(tp=>tp.price>0).map((tp,j) => {
@@ -1813,7 +1825,8 @@ function editTrade(id) {
       addEntryRow();
       const n = entryCount;
       document.getElementById(`e-price-${n}`).value = e.price||'';
-      document.getElementById(`e-vol-${n}`).value = e.vol||'';
+      if (document.getElementById(`e-usdt-${n}`)) document.getElementById(`e-usdt-${n}`).value = e.usdt||'';
+      document.getElementById(`e-vol-${n}`).value = e.usdt > 0 ? '' : (e.vol||'');
       if (document.getElementById(`e-type-${n}`)) document.getElementById(`e-type-${n}`).value = e.type||'Limit';
       if (document.getElementById(`e-time-${n}`)) document.getElementById(`e-time-${n}`).value = e.time||'';
     });
