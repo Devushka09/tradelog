@@ -868,6 +868,18 @@
         <button class="add-row-btn" onclick="addExitRow()">+ добавить выход</button>
       </div>
 
+      <!-- Manual commission & funding -->
+      <div class="form-grid col-2" style="margin-top:14px">
+        <div class="form-group">
+          <label>Комиссия вручную (USDT) — с биржи</label>
+          <input type="number" id="f-comm-manual" step="any" placeholder="пусто = авторасчёт" oninput="recalcPnl()">
+        </div>
+        <div class="form-group">
+          <label>Funding fee (USDT) — необязательно</label>
+          <input type="number" id="f-funding" step="any" placeholder="напр. -0.006" oninput="recalcPnl()">
+        </div>
+      </div>
+
       <!-- P&L preview -->
       <div class="section-divider"><span>💰 Итог сделки</span></div>
       <div class="pnl-preview">
@@ -1515,9 +1527,12 @@ function recalcPnl() {
     pnl = (avgExit - avgEntry) * exitVol * dir;
   }
 
-  // Commissions
-  const commissions = (totalVol * avgEntry + exitVol * avgExit) * fee;
-  const netPnl = pnl - commissions;
+  // Commissions — manual if provided, otherwise auto-calc from rate
+  const manualComm = parseFloat(document.getElementById('f-comm-manual')?.value);
+  const funding = parseFloat(document.getElementById('f-funding')?.value) || 0;
+  const autoComm = (totalVol * avgEntry + exitVol * avgExit) * fee;
+  const commissions = !isNaN(manualComm) && manualComm >= 0 ? manualComm : autoComm;
+  const netPnl = pnl - commissions - funding;
 
   // Display
   const pnlEl = document.getElementById('pv-pnl');
@@ -1594,10 +1609,13 @@ function saveTrade() {
   const avgExit = exitVol > 0 ? exitCost / exitVol : 0;
 
   const fee = settings.fee / 100;
-  const commissions = (totalVol * avgEntry + exitVol * avgExit) * fee;
+  const manualComm = parseFloat(document.getElementById('f-comm-manual')?.value);
+  const funding = parseFloat(document.getElementById('f-funding')?.value) || 0;
+  const autoComm = (totalVol * avgEntry + exitVol * avgExit) * fee;
+  const commissions = !isNaN(manualComm) && manualComm >= 0 ? manualComm : autoComm;
   const dir = formDirection === 'long' ? 1 : -1;
   let pnl = avgEntry > 0 && avgExit > 0 && status === 'closed' ?
-    (avgExit - avgEntry) * exitVol * dir - commissions : 0;
+    (avgExit - avgEntry) * exitVol * dir - commissions - funding : 0;
 
   const trade = {
     id: editingId || Date.now(),
@@ -1613,7 +1631,9 @@ function saveTrade() {
     slType: document.getElementById('f-sl-type').value,
     tps, exits, status,
     avgEntry, avgExit, totalVol,
-    commissions, pnl,
+    commissions, funding,
+    commManual: !isNaN(manualComm) && manualComm >= 0 ? manualComm : null,
+    pnl,
     pnlPct: settings.deposit > 0 ? pnl / settings.deposit * 100 : 0,
     plan: document.getElementById('f-plan').value,
     emotion: parseInt(document.getElementById('f-emotion').value) || 0,
@@ -1659,6 +1679,8 @@ function resetForm() {
   document.getElementById('f-error-type').value = '';
   document.getElementById('f-screenshot').value = '';
   document.getElementById('f-comment').value = '';
+  if (document.getElementById('f-comm-manual')) document.getElementById('f-comm-manual').value = '';
+  if (document.getElementById('f-funding')) document.getElementById('f-funding').value = '';
   formDirection = 'long';
   document.querySelectorAll('.dir-btn').forEach(b => b.classList.remove('active'));
   document.querySelector('.dir-btn.long').classList.add('active');
@@ -1790,6 +1812,7 @@ function renderTrades() {
               <div class="detail-row"><span class="dk">P&L</span><span class="dv ${pnlClass}">${t.status==='closed'?(t.pnl>=0?'+':'')+t.pnl.toFixed(2)+' USD':'Открыта'}</span></div>
               <div class="detail-row"><span class="dk">P&L %</span><span class="dv ${pnlClass}">${t.status==='closed'?(t.pnlPct>=0?'+':'')+t.pnlPct.toFixed(2)+'%':'—'}</span></div>
               <div class="detail-row"><span class="dk">Комиссии</span><span class="dv">$${(t.commissions||0).toFixed(4)}</span></div>
+              ${t.funding ? `<div class="detail-row"><span class="dk">Funding</span><span class="dv ${t.funding>=0?'pos':'neg'}">${t.funding>=0?'+':''}$${t.funding.toFixed(4)}</span></div>` : ''}
               <div class="detail-row"><span class="dk">План</span><span class="dv">${planIcon}</span></div>
               <div class="detail-row"><span class="dk">Эмоции</span><span class="dv">${t.emotion ? '⭐'.repeat(t.emotion) : '—'}</span></div>
               ${t.errorType ? `<div class="detail-row"><span class="dk">Ошибка</span><span class="dv neg">${t.errorType}</span></div>` : ''}
@@ -1851,6 +1874,8 @@ function editTrade(id) {
     document.getElementById('f-error-type').value = t.errorType||'';
     document.getElementById('f-screenshot').value = t.screenshot||'';
     document.getElementById('f-comment').value = t.comment||'';
+    if (document.getElementById('f-comm-manual')) document.getElementById('f-comm-manual').value = t.commManual != null ? t.commManual : '';
+    if (document.getElementById('f-funding')) document.getElementById('f-funding').value = t.funding || '';
 
     // Re-populate entries
     entryCount = 0;
