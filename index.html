@@ -254,9 +254,9 @@
     border-radius: var(--radius-sm);
     padding: 12px;
   }
-  .entry-row { grid-template-columns: auto 1fr 1fr 1fr 1fr 1fr 36px; }
+  .entry-row { grid-template-columns: auto 1fr 1fr 1fr 1fr 1fr 1fr 36px; }
   .tp-row { grid-template-columns: auto 1fr 1fr 1fr 1fr 36px; }
-  .exit-row { grid-template-columns: auto 1fr 1fr 1fr 1fr 1fr 1fr 36px; }
+  .exit-row { grid-template-columns: auto 1fr 1fr 1fr 1fr 1fr 1fr 1fr 36px; }
   .row-num {
     font-size: 10px;
     color: var(--text3);
@@ -1340,6 +1340,10 @@ function addEntryRow() {
       </select>
     </div>
     <div class="form-group">
+      <label>Дата</label>
+      <input type="date" id="e-date-${n}">
+    </div>
+    <div class="form-group">
       <label>Время</label>
       <input type="time" id="e-time-${n}">
     </div>
@@ -1418,6 +1422,10 @@ function addExitRow() {
       </select>
     </div>
     <div class="form-group">
+      <label>Дата</label>
+      <input type="date" id="ex-date-${n}">
+    </div>
+    <div class="form-group">
       <label>Время</label>
       <input type="time" id="ex-time-${n}">
     </div>
@@ -1451,6 +1459,7 @@ function getEntries() {
       usdt,
       vol,
       type: document.getElementById(`e-type-${n}`)?.value || '',
+      date: document.getElementById(`e-date-${n}`)?.value || '',
       time: document.getElementById(`e-time-${n}`)?.value || ''
     };
   }).filter(e => e.price > 0 && e.vol > 0);
@@ -1467,6 +1476,7 @@ function getExits() {
       pct: parseFloat(document.getElementById(`ex-pct-${n}`)?.value) || 0,
       type: document.getElementById(`ex-type-${n}`)?.value || '',
       reason: document.getElementById(`ex-reason-${n}`)?.value || '',
+      date: document.getElementById(`ex-date-${n}`)?.value || '',
       time: document.getElementById(`ex-time-${n}`)?.value || ''
     };
   }).filter(e => e.price > 0 && (e.usdt > 0 || e.vol > 0 || e.pct > 0));
@@ -1737,7 +1747,8 @@ function renderTrades() {
     // Entries sub-table
     const entriesHtml = t.entries.map((e,j) => {
       const amt = e.usdt > 0 ? e.usdt + ' USDT' : e.vol + ' монет';
-      return `<tr><td>#${j+1}</td><td>${e.price}</td><td>${amt}</td><td>${e.type}</td><td>${e.time||'—'}</td></tr>`;
+      const dt = e.date ? `${e.date.slice(5)} ${e.time||''}` : (e.time||'—');
+      return `<tr><td>#${j+1}</td><td>${e.price}</td><td>${amt}</td><td>${e.type}</td><td>${dt}</td></tr>`;
     }).join('');
 
     // TPs sub-table
@@ -1751,7 +1762,8 @@ function renderTrades() {
     // Exits sub-table
     const exitsHtml = t.exits.map((e,j) => {
       const amt = e.usdt > 0 ? e.usdt + ' USDT' : e.vol > 0 ? e.vol + ' монет' : (e.pct||'—') + '%';
-      return `<tr><td>#${j+1}</td><td>${e.price}</td><td>${amt}</td><td>${e.reason}</td><td>${e.time||'—'}</td></tr>`;
+      const dt = e.date ? `${e.date.slice(5)} ${e.time||''}` : (e.time||'—');
+      return `<tr><td>#${j+1}</td><td>${e.price}</td><td>${amt}</td><td>${e.reason}</td><td>${dt}</td></tr>`;
     }).join('');
 
     const planIcon = {yes:'✓ Да', partial:'⚠ Частично', no:'✗ Нет'}[t.plan] || '';
@@ -1780,7 +1792,7 @@ function renderTrades() {
           <div class="detail-section">
             <div class="detail-section-title">Входы в позицию</div>
             <table class="sub-table">
-              <thead><tr><th>#</th><th>Цена</th><th>Объём</th><th>Тип</th><th>Время</th></tr></thead>
+              <thead><tr><th>#</th><th>Цена</th><th>Объём</th><th>Тип</th><th>Дата/время</th></tr></thead>
               <tbody>${entriesHtml}</tbody>
             </table>
             <div class="detail-rows" style="margin-top:10px">
@@ -1799,7 +1811,7 @@ function renderTrades() {
             ${t.exits?.length > 0 ? `
             <div class="detail-section-title" style="margin-top:14px">Фактические выходы</div>
             <table class="sub-table">
-              <thead><tr><th>#</th><th>Цена</th><th>%</th><th>Причина</th><th>Время</th></tr></thead>
+              <thead><tr><th>#</th><th>Цена</th><th>%</th><th>Причина</th><th>Дата/время</th></tr></thead>
               <tbody>${exitsHtml}</tbody>
             </table>
             <div class="detail-rows" style="margin-top:8px">
@@ -1887,6 +1899,7 @@ function editTrade(id) {
       if (document.getElementById(`e-usdt-${n}`)) document.getElementById(`e-usdt-${n}`).value = e.usdt||'';
       document.getElementById(`e-vol-${n}`).value = e.usdt > 0 ? '' : (e.vol||'');
       if (document.getElementById(`e-type-${n}`)) document.getElementById(`e-type-${n}`).value = e.type||'Limit';
+      if (document.getElementById(`e-date-${n}`)) document.getElementById(`e-date-${n}`).value = e.date||'';
       if (document.getElementById(`e-time-${n}`)) document.getElementById(`e-time-${n}`).value = e.time||'';
     });
 
@@ -1911,6 +1924,7 @@ function editTrade(id) {
       document.getElementById(`ex-pct-${n}`).value = ex.pct||'';
       if (document.getElementById(`ex-type-${n}`)) document.getElementById(`ex-type-${n}`).value = ex.type||'Market';
       if (document.getElementById(`ex-reason-${n}`)) document.getElementById(`ex-reason-${n}`).value = ex.reason||'TP';
+      if (document.getElementById(`ex-date-${n}`)) document.getElementById(`ex-date-${n}`).value = ex.date||'';
       if (document.getElementById(`ex-time-${n}`)) document.getElementById(`ex-time-${n}`).value = ex.time||'';
     });
 
