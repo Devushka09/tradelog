@@ -1825,6 +1825,18 @@ function renderTrades() {
               <div class="detail-row"><span class="dk">P&L %</span><span class="dv ${pnlClass}">${t.status==='closed'?(t.pnlPct>=0?'+':'')+t.pnlPct.toFixed(2)+'%':'—'}</span></div>
               <div class="detail-row"><span class="dk">Комиссии</span><span class="dv">$${(t.commissions||0).toFixed(4)}</span></div>
               ${t.funding ? `<div class="detail-row"><span class="dk">Funding</span><span class="dv ${t.funding>=0?'pos':'neg'}">${t.funding>=0?'+':''}$${t.funding.toFixed(4)}</span></div>` : ''}
+              ${(() => {
+                if (t.status==='closed' && t.dateOpen && t.dateClose) {
+                  const op = new Date(`${t.dateOpen}T${t.timeOpen||'00:00'}`);
+                  const cl = new Date(`${t.dateClose}T23:59`);
+                  const h = (cl-op)/3600000;
+                  if (h >= 0) {
+                    const dur = h < 24 ? `${h.toFixed(0)} ч` : `${(h/24).toFixed(1)} дн`;
+                    return `<div class="detail-row"><span class="dk">Длительность</span><span class="dv">${dur}</span></div>`;
+                  }
+                }
+                return '';
+              })()}
               <div class="detail-row"><span class="dk">План</span><span class="dv">${planIcon}</span></div>
               <div class="detail-row"><span class="dk">Эмоции</span><span class="dv">${t.emotion ? '⭐'.repeat(t.emotion) : '—'}</span></div>
               ${t.errorType ? `<div class="detail-row"><span class="dk">Ошибка</span><span class="dv neg">${t.errorType}</span></div>` : ''}
@@ -1958,6 +1970,24 @@ function renderStats() {
   const avgLoss = losing.length > 0 ? losing.reduce((s,t) => s+t.pnl,0)/losing.length : 0;
   const profitFactor = Math.abs(avgLoss) > 0 ? Math.abs(avgWin / avgLoss) : 0;
 
+  // Длительность сделки в часах (от открытия до закрытия)
+  function durationHours(t) {
+    if (!t.dateOpen || !t.dateClose) return null;
+    const open = new Date(`${t.dateOpen}T${t.timeOpen||'00:00'}`);
+    const close = new Date(`${t.dateClose}T23:59`);
+    const h = (close - open) / 3600000;
+    return h >= 0 ? h : null;
+  }
+  function fmtDuration(h) {
+    if (h == null) return '—';
+    if (h < 24) return `${h.toFixed(0)} ч`;
+    return `${(h/24).toFixed(1)} дн`;
+  }
+  const winDurations = profitable.map(durationHours).filter(h => h != null);
+  const lossDurations = losing.map(durationHours).filter(h => h != null);
+  const avgWinDur = winDurations.length ? winDurations.reduce((a,b)=>a+b,0)/winDurations.length : null;
+  const avgLossDur = lossDurations.length ? lossDurations.reduce((a,b)=>a+b,0)/lossDurations.length : null;
+
   const statsGrid = document.getElementById('stats-grid');
   statsGrid.innerHTML = `
     <div class="stat-card">
@@ -1981,9 +2011,24 @@ function renderStats() {
       <div class="sc-sub">Avg Loss: $${avgLoss.toFixed(2)}</div>
     </div>
     <div class="stat-card">
+      <div class="sc-label">Длит. прибыльных</div>
+      <div class="sc-value pos">${fmtDuration(avgWinDur)}</div>
+      <div class="sc-sub">средняя по ${winDurations.length} сделкам</div>
+    </div>
+    <div class="stat-card">
+      <div class="sc-label">Длит. убыточных</div>
+      <div class="sc-value neg">${fmtDuration(avgLossDur)}</div>
+      <div class="sc-sub">${avgLossDur && avgWinDur && avgLossDur > avgWinDur ? '⚠ дольше прибыльных' : 'средняя по '+lossDurations.length+' сделкам'}</div>
+    </div>
+    <div class="stat-card">
       <div class="sc-label">Сделок всего</div>
       <div class="sc-value neutral">${trades.length}</div>
       <div class="sc-sub">${trades.filter(t=>t.status==='open').length} открытых</div>
+    </div>
+    <div class="stat-card">
+      <div class="sc-label">% дисциплины</div>
+      <div class="sc-value ${trades.length ? (trades.filter(t=>t.plan==='yes').length/trades.length*100) >= 80 ? 'pos' : 'warn' : 'neutral'}">${trades.length ? (trades.filter(t=>t.plan==='yes').length/trades.length*100).toFixed(1) : 0}%</div>
+      <div class="sc-sub">Цель ≥ 80%</div>
     </div>
     <div class="stat-card">
       <div class="sc-label">Лучшая сделка</div>
@@ -1994,11 +2039,6 @@ function renderStats() {
       <div class="sc-label">Худшая сделка</div>
       <div class="sc-value neg">$${closed.length ? Math.min(...closed.map(t=>t.pnl)).toFixed(2) : '0.00'}</div>
       <div class="sc-sub">&nbsp;</div>
-    </div>
-    <div class="stat-card">
-      <div class="sc-label">% дисциплины</div>
-      <div class="sc-value ${trades.length ? (trades.filter(t=>t.plan==='yes').length/trades.length*100) >= 80 ? 'pos' : 'warn' : 'neutral'}">${trades.length ? (trades.filter(t=>t.plan==='yes').length/trades.length*100).toFixed(1) : 0}%</div>
-      <div class="sc-sub">Цель ≥ 80%</div>
     </div>`;
 
   // Equity curve
