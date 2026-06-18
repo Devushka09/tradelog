@@ -999,19 +999,20 @@
           </div>
         </div>
         <div class="form-group">
-          <label>Цена входа</label>
-          <input type="number" id="calc-entry" step="any" placeholder="0.00" oninput="calcBE()">
-        </div>
-        <div class="form-group">
-          <label>Объём позиции (USDT)</label>
-          <input type="number" id="calc-size" step="any" placeholder="напр. 20" oninput="calcBE()">
-        </div>
-        <div class="form-group">
           <label>Комиссия за сделку (%)</label>
           <input type="number" id="calc-fee" step="any" placeholder="0.04" value="0.04" oninput="calcBE()">
           <span style="font-size:9px;color:var(--text3)">мейкер ~0.02, тейкер ~0.04</span>
         </div>
+        <div class="form-group">
+          <label>Ср. цена входа (авто)</label>
+          <div id="calc-avg-entry" style="padding:8px 10px;background:var(--surface3);border-radius:6px;font-size:12px;color:var(--text);">—</div>
+        </div>
       </div>
+
+      <div class="section-divider"><span>📥 Входы в позицию</span></div>
+      <p style="font-size:10px;color:var(--text3);margin-bottom:12px">Один или несколько входов (для усреднения). Объём в USDT.</p>
+      <div class="rows-container" id="calc-entries"></div>
+      <button class="add-row-btn" onclick="addCalcEntry()">+ добавить вход</button>
 
       <div class="section-divider"><span>🎯 Тейк-профиты</span></div>
       <p style="font-size:10px;color:var(--text3);margin-bottom:12px">Укажи цену каждого тейка и какой % позиции на нём закрываешь.</p>
@@ -2678,6 +2679,7 @@ function setBtnLoading(id, loading) {
 // ===== BREAKEVEN CALCULATOR =====
 let calcDir = 'long';
 let calcTpCount = 0;
+let calcEntryCount = 0;
 
 function setCalcDir(dir, el) {
   calcDir = dir;
@@ -2687,11 +2689,41 @@ function setCalcDir(dir, el) {
 }
 
 function initCalc() {
+  if (document.querySelectorAll('#calc-entries .entry-row').length === 0) {
+    addCalcEntry();
+  }
   if (document.querySelectorAll('#calc-tps .tp-row').length === 0) {
     addCalcTp();
     addCalcTp();
   }
   calcBE();
+}
+
+function addCalcEntry() {
+  calcEntryCount++;
+  const n = calcEntryCount;
+  const c = document.getElementById('calc-entries');
+  const row = document.createElement('div');
+  row.className = 'entry-row';
+  row.id = `calc-entry-${n}`;
+  row.style.gridTemplateColumns = 'auto 1fr 1fr 36px';
+  row.innerHTML = `
+    <div class="row-num">#${document.querySelectorAll('#calc-entries .entry-row').length + 1}</div>
+    <div class="form-group">
+      <label>Цена входа</label>
+      <input type="number" class="calc-entry-price" step="any" placeholder="0.00" oninput="calcBE()">
+    </div>
+    <div class="form-group">
+      <label>Сумма (USDT)</label>
+      <input type="number" class="calc-entry-usdt" step="any" placeholder="напр. 10" oninput="calcBE()">
+    </div>
+    <button class="btn btn-danger btn-icon" onclick="this.parentElement.remove();renumberCalcEntries();calcBE()" title="Удалить">✕</button>`;
+  c.appendChild(row);
+  renumberCalcEntries();
+}
+
+function renumberCalcEntries() {
+  document.querySelectorAll('#calc-entries .entry-row .row-num').forEach((el,i) => el.textContent = `#${i+1}`);
 }
 
 function addCalcTp() {
@@ -2722,19 +2754,33 @@ function renumberCalcTps() {
 }
 
 function calcBE() {
-  const entry = parseFloat(document.getElementById('calc-entry')?.value) || 0;
-  const size = parseFloat(document.getElementById('calc-size')?.value) || 0;
   const feePct = (parseFloat(document.getElementById('calc-fee')?.value) || 0) / 100;
   const resultEl = document.getElementById('calc-result');
+  const avgEl = document.getElementById('calc-avg-entry');
   if (!resultEl) return;
 
+  // Собираем входы
+  let totalCoins = 0, totalUsdt = 0;
+  document.querySelectorAll('#calc-entries .entry-row').forEach(row => {
+    const price = parseFloat(row.querySelector('.calc-entry-price')?.value) || 0;
+    const usdt = parseFloat(row.querySelector('.calc-entry-usdt')?.value) || 0;
+    if (price > 0 && usdt > 0) {
+      totalCoins += usdt / price;
+      totalUsdt += usdt;
+    }
+  });
+
+  const entry = totalCoins > 0 ? totalUsdt / totalCoins : 0;
+  const size = totalUsdt;
+
+  if (avgEl) avgEl.textContent = entry > 0 ? entry.toFixed(6).replace(/\.?0+$/,'') : '—';
+
   if (entry <= 0 || size <= 0) {
-    resultEl.innerHTML = `<div style="font-size:11px;color:var(--text3);padding:10px 0">Заполни цену входа и объём позиции.</div>`;
+    resultEl.innerHTML = `<div style="font-size:11px;color:var(--text3);padding:10px 0">Заполни хотя бы один вход (цену и сумму).</div>`;
     return;
   }
 
   const dir = calcDir === 'long' ? 1 : -1;
-  const totalCoins = size / entry;
 
   // Собираем тейки
   const tps = [];
@@ -2744,23 +2790,20 @@ function calcBE() {
     if (price > 0 && pct > 0) tps.push({ price, pct });
   });
 
-  // Комиссия входа (на весь объём)
   const entryFee = size * feePct;
 
   let rows = '';
-  let cumProfit = 0;       // накопленная прибыль от взятых тейков (за вычетом комиссий выходов)
-  let cumClosedPct = 0;    // сколько % позиции уже закрыто
+  let cumProfit = 0;
+  let cumClosedPct = 0;
 
-  // Чистый безубыток без тейков (просто вернуть вход + комиссии)
-  // BE = entry + (entryFee + exitFee) / coins   для лонга
-  const remainingCoinsFull = totalCoins;
-  const exitFeeFull = entry * remainingCoinsFull * feePct;
+  const exitFeeFull = entry * totalCoins * feePct;
   const beClean = entry + dir * (entryFee + exitFeeFull) / totalCoins;
 
   rows += `
     <div class="detail-section" style="margin-bottom:12px">
       <div class="detail-section-title">Чистый безубыток (без тейков)</div>
       <div class="detail-rows">
+        <div class="detail-row"><span class="dk">Ср. цена входа</span><span class="dv">${entry.toFixed(6).replace(/\.?0+$/,'')}</span></div>
         <div class="detail-row"><span class="dk">Стоп в ноль с учётом комиссий</span><span class="dv">${beClean.toFixed(6).replace(/\.?0+$/,'')}</span></div>
         <div class="detail-row"><span class="dk">Сдвиг от входа</span><span class="dv">${(Math.abs(beClean-entry)/entry*100).toFixed(3)}%</span></div>
       </div>
@@ -2779,19 +2822,12 @@ function calcBE() {
       const remainingPct = 100 - cumClosedPct;
       const remainingCoins = totalCoins * remainingPct / 100;
 
-      // Цена стопа на остаток, при которой общий результат = 0 (фиксируем хотя бы безубыток всей сделки)
-      // Общий PnL = cumProfit + (stopPrice - entry)*remainingCoins*dir - entryFeeOnRemaining - exitFeeOnRemaining = 0
       let stopForZero = '—', stopForKeepProfit = '—';
       if (remainingCoins > 0) {
         const entryFeeRem = entry * remainingCoins * feePct;
-        // приблизительная комиссия выхода считается по цене стопа — берём итеративно простой подход (по entry)
         const exitFeeRem = entry * remainingCoins * feePct;
-        // (stop - entry)*remCoins*dir = -(cumProfit - entryFeeRem - exitFeeRem)
         const needed = -(cumProfit - entryFeeRem - exitFeeRem) / (remainingCoins * dir);
         stopForZero = (entry + needed).toFixed(6).replace(/\.?0+$/,'');
-
-        // Стоп = цена входа (классический перенос в БУ) — показываем какой профит зафиксируется
-        const profitIfEntryStop = cumProfit + (entry - entry)*remainingCoins*dir - entryFeeRem - exitFeeRem;
         stopForKeepProfit = entry.toFixed(6).replace(/\.?0+$/,'');
       }
 
