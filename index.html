@@ -728,6 +728,7 @@
   <button class="tab active" onclick="showTab('tab-journal')">📒 Журнал</button>
   <button class="tab" onclick="showTab('tab-new')">＋ Новая сделка</button>
   <button class="tab" onclick="showTab('tab-stats')">📊 Статистика</button>
+  <button class="tab" onclick="showTab('tab-calc')">🧮 Калькулятор</button>
   <button class="tab" onclick="showTab('tab-errors')">⚠️ Ошибки & Уроки</button>
   <button class="tab" onclick="showTab('tab-settings')">⚙️ Настройки</button>
 </div>
@@ -978,6 +979,47 @@
         <h3>Распределение по монетам</h3>
         <div class="bar-chart" id="coin-chart"></div>
       </div>
+    </div>
+  </div>
+
+  <!-- ===== CALCULATOR TAB ===== -->
+  <div class="panel" id="tab-calc">
+    <div class="trade-form" style="max-width:880px">
+      <div class="form-title">Калькулятор безубытка и переноса стопа</div>
+      <p style="font-size:11px;color:var(--text2);margin-bottom:20px;line-height:1.7">
+        Рассчитывает куда переносить стоп после каждого тейка: чистый безубыток (с учётом комиссий) и цену стопа, гарантирующую фиксацию прибыли от уже взятых тейков.
+      </p>
+
+      <div class="form-grid col-3">
+        <div class="form-group">
+          <label>Направление</label>
+          <div class="direction-toggle">
+            <button class="dir-btn long active" onclick="setCalcDir('long',this)">ЛОНГ</button>
+            <button class="dir-btn short" onclick="setCalcDir('short',this)">ШОРТ</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Цена входа</label>
+          <input type="number" id="calc-entry" step="any" placeholder="0.00" oninput="calcBE()">
+        </div>
+        <div class="form-group">
+          <label>Объём позиции (USDT)</label>
+          <input type="number" id="calc-size" step="any" placeholder="напр. 20" oninput="calcBE()">
+        </div>
+        <div class="form-group">
+          <label>Комиссия за сделку (%)</label>
+          <input type="number" id="calc-fee" step="any" placeholder="0.04" value="0.04" oninput="calcBE()">
+          <span style="font-size:9px;color:var(--text3)">мейкер ~0.02, тейкер ~0.04</span>
+        </div>
+      </div>
+
+      <div class="section-divider"><span>🎯 Тейк-профиты</span></div>
+      <p style="font-size:10px;color:var(--text3);margin-bottom:12px">Укажи цену каждого тейка и какой % позиции на нём закрываешь.</p>
+      <div class="rows-container" id="calc-tps"></div>
+      <button class="add-row-btn" onclick="addCalcTp()">+ добавить тейк</button>
+
+      <div class="section-divider"><span>📊 Результат</span></div>
+      <div id="calc-result"></div>
     </div>
   </div>
 
@@ -1294,10 +1336,11 @@ function showTab(id) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  const idx = ['tab-journal','tab-new','tab-stats','tab-errors','tab-settings'].indexOf(id);
+  const idx = ['tab-journal','tab-new','tab-stats','tab-calc','tab-errors','tab-settings'].indexOf(id);
   document.querySelectorAll('.tab')[idx].classList.add('active');
   if (id === 'tab-journal') renderTrades();
   if (id === 'tab-stats') renderStats();
+  if (id === 'tab-calc') initCalc();
   if (id === 'tab-errors') renderErrors();
   if (id === 'tab-settings') { renderStrategiesList(); renderExchangeDepositsList(); loadGistConfig(); }
   if (id === 'tab-new' && !editingId) { resetForm(); addEntryRow(); addTpRow(); }
@@ -2630,6 +2673,145 @@ function setBtnLoading(id, loading) {
   if (!btn) return;
   btn.disabled = loading;
   btn.style.opacity = loading ? '0.6' : '1';
+}
+
+// ===== BREAKEVEN CALCULATOR =====
+let calcDir = 'long';
+let calcTpCount = 0;
+
+function setCalcDir(dir, el) {
+  calcDir = dir;
+  document.querySelectorAll('#tab-calc .dir-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  calcBE();
+}
+
+function initCalc() {
+  if (document.querySelectorAll('#calc-tps .tp-row').length === 0) {
+    addCalcTp();
+    addCalcTp();
+  }
+  calcBE();
+}
+
+function addCalcTp() {
+  calcTpCount++;
+  const n = calcTpCount;
+  const c = document.getElementById('calc-tps');
+  const row = document.createElement('div');
+  row.className = 'tp-row';
+  row.id = `calc-tp-${n}`;
+  row.style.gridTemplateColumns = 'auto 1fr 1fr 36px';
+  row.innerHTML = `
+    <div class="row-num">TP${document.querySelectorAll('#calc-tps .tp-row').length + 1}</div>
+    <div class="form-group">
+      <label>Цена тейка</label>
+      <input type="number" class="calc-tp-price" step="any" placeholder="0.00" oninput="calcBE()">
+    </div>
+    <div class="form-group">
+      <label>% позиции закрыть</label>
+      <input type="number" class="calc-tp-pct" step="any" placeholder="напр. 50" oninput="calcBE()">
+    </div>
+    <button class="btn btn-danger btn-icon" onclick="this.parentElement.remove();renumberCalcTps();calcBE()" title="Удалить">✕</button>`;
+  c.appendChild(row);
+  renumberCalcTps();
+}
+
+function renumberCalcTps() {
+  document.querySelectorAll('#calc-tps .tp-row .row-num').forEach((el,i) => el.textContent = `TP${i+1}`);
+}
+
+function calcBE() {
+  const entry = parseFloat(document.getElementById('calc-entry')?.value) || 0;
+  const size = parseFloat(document.getElementById('calc-size')?.value) || 0;
+  const feePct = (parseFloat(document.getElementById('calc-fee')?.value) || 0) / 100;
+  const resultEl = document.getElementById('calc-result');
+  if (!resultEl) return;
+
+  if (entry <= 0 || size <= 0) {
+    resultEl.innerHTML = `<div style="font-size:11px;color:var(--text3);padding:10px 0">Заполни цену входа и объём позиции.</div>`;
+    return;
+  }
+
+  const dir = calcDir === 'long' ? 1 : -1;
+  const totalCoins = size / entry;
+
+  // Собираем тейки
+  const tps = [];
+  document.querySelectorAll('#calc-tps .tp-row').forEach(row => {
+    const price = parseFloat(row.querySelector('.calc-tp-price')?.value) || 0;
+    const pct = parseFloat(row.querySelector('.calc-tp-pct')?.value) || 0;
+    if (price > 0 && pct > 0) tps.push({ price, pct });
+  });
+
+  // Комиссия входа (на весь объём)
+  const entryFee = size * feePct;
+
+  let rows = '';
+  let cumProfit = 0;       // накопленная прибыль от взятых тейков (за вычетом комиссий выходов)
+  let cumClosedPct = 0;    // сколько % позиции уже закрыто
+
+  // Чистый безубыток без тейков (просто вернуть вход + комиссии)
+  // BE = entry + (entryFee + exitFee) / coins   для лонга
+  const remainingCoinsFull = totalCoins;
+  const exitFeeFull = entry * remainingCoinsFull * feePct;
+  const beClean = entry + dir * (entryFee + exitFeeFull) / totalCoins;
+
+  rows += `
+    <div class="detail-section" style="margin-bottom:12px">
+      <div class="detail-section-title">Чистый безубыток (без тейков)</div>
+      <div class="detail-rows">
+        <div class="detail-row"><span class="dk">Стоп в ноль с учётом комиссий</span><span class="dv">${beClean.toFixed(6).replace(/\.?0+$/,'')}</span></div>
+        <div class="detail-row"><span class="dk">Сдвиг от входа</span><span class="dv">${(Math.abs(beClean-entry)/entry*100).toFixed(3)}%</span></div>
+      </div>
+      <div style="font-size:10px;color:var(--text3);margin-top:8px">Поставив стоп сюда, при срабатывании выйдешь в чистый ноль (комиссии отбиты).</div>
+    </div>`;
+
+  if (tps.length > 0) {
+    rows += `<div class="detail-section-title" style="margin:14px 0 10px">После каждого тейка</div>`;
+    tps.forEach((tp, i) => {
+      const coinsClosed = totalCoins * tp.pct / 100;
+      const profitThisTp = (tp.price - entry) * coinsClosed * dir;
+      const exitFeeThisTp = tp.price * coinsClosed * feePct;
+      cumProfit += profitThisTp - exitFeeThisTp;
+      cumClosedPct += tp.pct;
+
+      const remainingPct = 100 - cumClosedPct;
+      const remainingCoins = totalCoins * remainingPct / 100;
+
+      // Цена стопа на остаток, при которой общий результат = 0 (фиксируем хотя бы безубыток всей сделки)
+      // Общий PnL = cumProfit + (stopPrice - entry)*remainingCoins*dir - entryFeeOnRemaining - exitFeeOnRemaining = 0
+      let stopForZero = '—', stopForKeepProfit = '—';
+      if (remainingCoins > 0) {
+        const entryFeeRem = entry * remainingCoins * feePct;
+        // приблизительная комиссия выхода считается по цене стопа — берём итеративно простой подход (по entry)
+        const exitFeeRem = entry * remainingCoins * feePct;
+        // (stop - entry)*remCoins*dir = -(cumProfit - entryFeeRem - exitFeeRem)
+        const needed = -(cumProfit - entryFeeRem - exitFeeRem) / (remainingCoins * dir);
+        stopForZero = (entry + needed).toFixed(6).replace(/\.?0+$/,'');
+
+        // Стоп = цена входа (классический перенос в БУ) — показываем какой профит зафиксируется
+        const profitIfEntryStop = cumProfit + (entry - entry)*remainingCoins*dir - entryFeeRem - exitFeeRem;
+        stopForKeepProfit = entry.toFixed(6).replace(/\.?0+$/,'');
+      }
+
+      rows += `
+        <div class="detail-section" style="margin-bottom:10px">
+          <div class="detail-section-title">После TP${i+1} (закрыто ${cumClosedPct.toFixed(0)}% позиции)</div>
+          <div class="detail-rows">
+            <div class="detail-row"><span class="dk">Зафиксированная прибыль</span><span class="dv ${cumProfit>=0?'pos':'neg'}">${cumProfit>=0?'+':''}$${cumProfit.toFixed(4)}</span></div>
+            <div class="detail-row"><span class="dk">Осталось в позиции</span><span class="dv">${remainingPct.toFixed(0)}%</span></div>
+            ${remainingCoins > 0 ? `
+            <div class="detail-row"><span class="dk">Стоп для общего нуля</span><span class="dv">${stopForZero}</span></div>
+            <div class="detail-row"><span class="dk">Стоп в цену входа (БУ)</span><span class="dv">${stopForKeepProfit}</span></div>
+            ` : `<div class="detail-row"><span class="dk">Позиция полностью закрыта</span><span class="dv pos">итог ${cumProfit>=0?'+':''}$${cumProfit.toFixed(4)}</span></div>`}
+          </div>
+          ${remainingCoins > 0 ? `<div style="font-size:10px;color:var(--text3);margin-top:8px">Поставив стоп в цену входа после TP${i+1}, ты гарантируешь прибыль не меньше зафиксированной (${cumProfit>=0?'+':''}$${cumProfit.toFixed(2)}), даже если остаток закроется по стопу.</div>` : ''}
+        </div>`;
+    });
+  }
+
+  resultEl.innerHTML = rows;
 }
 
 // ===== SEED DATA (old trades) =====
