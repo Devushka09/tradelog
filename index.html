@@ -2733,7 +2733,7 @@ function addCalcTp() {
   const row = document.createElement('div');
   row.className = 'tp-row';
   row.id = `calc-tp-${n}`;
-  row.style.gridTemplateColumns = 'auto 1fr 1fr 36px';
+  row.style.gridTemplateColumns = 'auto 1fr 1fr 1fr 36px';
   row.innerHTML = `
     <div class="row-num">TP${document.querySelectorAll('#calc-tps .tp-row').length + 1}</div>
     <div class="form-group">
@@ -2741,7 +2741,11 @@ function addCalcTp() {
       <input type="number" class="calc-tp-price" step="any" placeholder="0.00" oninput="calcBE()">
     </div>
     <div class="form-group">
-      <label>% позиции закрыть</label>
+      <label>Закрыть USDT</label>
+      <input type="number" class="calc-tp-usdt" step="any" placeholder="напр. 10" oninput="calcBE()">
+    </div>
+    <div class="form-group">
+      <label>или % позиции</label>
       <input type="number" class="calc-tp-pct" step="any" placeholder="напр. 50" oninput="calcBE()">
     </div>
     <button class="btn btn-danger btn-icon" onclick="this.parentElement.remove();renumberCalcTps();calcBE()" title="Удалить">✕</button>`;
@@ -2782,12 +2786,20 @@ function calcBE() {
 
   const dir = calcDir === 'long' ? 1 : -1;
 
-  // Собираем тейки
+  // Собираем тейки — % приоритетно, иначе из USDT
   const tps = [];
   document.querySelectorAll('#calc-tps .tp-row').forEach(row => {
     const price = parseFloat(row.querySelector('.calc-tp-price')?.value) || 0;
-    const pct = parseFloat(row.querySelector('.calc-tp-pct')?.value) || 0;
-    if (price > 0 && pct > 0) tps.push({ price, pct });
+    const usdt = parseFloat(row.querySelector('.calc-tp-usdt')?.value) || 0;
+    const pctInput = parseFloat(row.querySelector('.calc-tp-pct')?.value) || 0;
+    if (price <= 0) return;
+    let pct = pctInput;
+    // Если введён USDT, переводим в % от общего объёма позиции (по цене входа)
+    if (pct <= 0 && usdt > 0) {
+      const coinsThisTp = usdt / price;
+      pct = (coinsThisTp / totalCoins) * 100;
+    }
+    if (pct > 0) tps.push({ price, pct });
   });
 
   const entryFee = size * feePct;
