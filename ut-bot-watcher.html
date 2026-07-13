@@ -67,10 +67,12 @@ input:focus,select:focus{outline:2px solid var(--amber-dim)}
 <legend>Добавить монету</legend>
 <div class="grid5">
   <div><label>Биржа</label><select id="fEx"><option value="mexc">MEXC</option><option value="bybit">Bybit</option></select></div>
+  <div><label>Движок</label><select id="fEng"><option value="ut">UT Bot</option><option value="hull">Hull+Каналы</option></select></div>
   <div><label>Тикер</label><input id="fSym" placeholder="SNDKSTOCK" value=""></div>
   <div><label>ТФ</label><select id="fTf"><option>5m</option><option selected>15m</option><option>30m</option><option>1h</option></select></div>
-  <div><label>Key Value (a)</label><input id="fA" type="number" step="0.1" value="1"></div>
-  <div><label>ATR Period</label><input id="fC" type="number" value="15"></div>
+  <div><label id="lblA">Key Value (a)</label><input id="fA" type="number" step="0.1" value="1"></div>
+  <div><label id="lblC">ATR Period</label><input id="fC" type="number" value="15"></div>
+  <div><label>Разбег (для H+K)</label><input id="fGap" type="number" value="3" min="0" max="10"></div>
   <div><label>SL, % (0 — без)</label><input id="fSl" type="number" step="0.5" value="2"></div>
   <div><button class="btn-y" id="addBtn" style="width:100%">Добавить</button></div>
 </div>
@@ -91,8 +93,15 @@ let watchers=[], running=false, audioCtx=null;
 
 /* ---------- сохранение ---------- */
 try{ watchers=JSON.parse(localStorage.getItem('utwatch')||'[]'); }catch(e){}
-if(!watchers.length) watchers=[{ex:'mexc',sym:'SNDKSTOCK',tf:'15m',a:1,c:15,sl:2}];
-const save=()=>localStorage.setItem('utwatch',JSON.stringify(watchers.map(w=>({ex:w.ex,sym:w.sym,tf:w.tf,a:w.a,c:w.c,sl:w.sl}))));
+if(!watchers.length) watchers=[{ex:'mexc',sym:'SNDKSTOCK',tf:'15m',eng:'ut',a:1,c:15,sl:2,gap:3}];
+watchers.forEach(w=>{ if(!w.eng)w.eng='ut'; if(w.gap===undefined)w.gap=3; });
+const save=()=>localStorage.setItem('utwatch',JSON.stringify(watchers.map(w=>({ex:w.ex,sym:w.sym,tf:w.tf,eng:w.eng,a:w.a,c:w.c,sl:w.sl,gap:w.gap}))));
+$('fEng').addEventListener('change',()=>{
+  const h=$('fEng').value==='hull';
+  $('lblA').textContent=h?'Длина Hull':'Key Value (a)';
+  $('lblC').textContent=h?'Bandwidth':'ATR Period';
+  $('fA').value=h?34:1; $('fC').value=h?10:15;
+});
 
 /* ---------- сеть ---------- */
 async function apiGet(url,direct=false){
@@ -106,7 +115,7 @@ async function apiGet(url,direct=false){
   }
 }
 async function getKlines(w){
-  const count=w.c*6+80; // запас истории
+  const count=w.eng==='hull'? w.a*3+150 : w.c*6+80; // запас истории
   if(w.ex==='bybit'){
     const sym=w.sym.toUpperCase().endsWith('USDT')?w.sym.toUpperCase():w.sym.toUpperCase()+'USDT';
     const j=await apiGet(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${sym}&interval=${TF[w.tf].bybit}&limit=${Math.min(count,1000)}`,true);
@@ -147,6 +156,52 @@ function utbot(K,a,c){
   }
   return {stop, atr:atr[n-1], lastSig, lastSigI, n, regime:K.c[n-1]>stop?'long':'short'};
 }
+/* ---------- Hull + Каналы ---------- */
+function wmaArr(src,n){
+  const out=new Array(src.length).fill(NaN), den=n*(n+1)/2;
+  for(let i=n-1;i<src.length;i++){
+    let num=0,bad=false;
+    for(let k=0;k<n;k++){ const v=src[i-k]; if(isNaN(v)){bad=true;break;} num+=v*(n-k); }
+    if(!bad) out[i]=num/den;
+  }
+  return out;
+}
+function hmaArr(src,n){
+  const h=Math.max(2,Math.round(n/2)), s=Math.max(2,Math.round(Math.sqrt(n)));
+  const w1=wmaArr(src,h), w2=wmaArr(src,n);
+  const diff=src.map((_,i)=>(isNaN(w1[i])||isNaN(w2[i]))?NaN:2*w1[i]-w2[i]);
+  return wmaArr(diff,s);
+}
+function kernelArr(src,h,r=8,x0=25){
+  const n=src.length,out=new Array(n).fill(NaN),w=[];
+  for(let k=0;k<=x0;k++)w.push(Math.pow(1+(k*k)/(2*r*h*h),-r));
+  for(let i=x0;i<n;i++){
+    let num=0,den=0;
+    for(let k=0;k<=x0;k++){num+=src[i-k]*w[k];den+=w[k];}
+    out[i]=num/den;
+  }
+  return out;
+}
+function hullState(K,len,bw,gap){
+  const hull=hmaArr(K.c,len), ker=kernelArr(K.c,bw);
+  const n=K.c.length;
+  let lastHU=-1e9,lastHD=-1e9,lastCU=-1e9,lastCD=-1e9,lastSig=null,lastSigI=-1;
+  for(let i=3;i<n;i++){
+    if(!isNaN(hull[i])&&!isNaN(hull[i-1])&&!isNaN(hull[i-2])&&!isNaN(hull[i-3])){
+      if(hull[i]>hull[i-2]&&hull[i-1]<=hull[i-3]) lastHU=i;
+      if(hull[i]<hull[i-2]&&hull[i-1]>=hull[i-3]) lastHD=i;
+    }
+    if(!isNaN(ker[i])&&!isNaN(ker[i-1])&&!isNaN(ker[i-2])){
+      if(ker[i]>ker[i-1]&&ker[i-1]<=ker[i-2]) lastCU=i;
+      if(ker[i]<ker[i-1]&&ker[i-1]>=ker[i-2]) lastCD=i;
+    }
+    if((lastHU===i||lastCU===i)&&i-lastHU<=gap&&i-lastCU<=gap){lastSig='BUY';lastSigI=i;}
+    else if((lastHD===i||lastCD===i)&&i-lastHD<=gap&&i-lastCD<=gap){lastSig='SELL';lastSigI=i;}
+  }
+  const regime=lastSig? (lastSig==='BUY'?'long':'short')
+    : (!isNaN(hull[n-1])&&!isNaN(hull[n-3])&&hull[n-1]>hull[n-3]?'long':'short');
+  return {hull:hull[n-1], ker:ker[n-1], lastSig, lastSigI, n, regime};
+}
 
 /* ---------- звук и уведомления ---------- */
 function beep(){
@@ -184,13 +239,16 @@ function render(){
     const st=!r?'—':(r.regime==='long'?'long':'short');
     const stateTxt=!r?'загрузка…':(r.regime==='long'?'РЕЖИМ: ЛОНГ':'РЕЖИМ: ШОРТ');
     const sig=r&&r.lastSig? `${r.lastSig==='BUY'?'🟢 BUY':'🔴 SELL'} · ${r.barsAgo===0?'на последней свече!':r.barsAgo+' св. назад'}`:'—';
+    const isH=w.eng==='hull';
+    const params=isH?`H+K · ${w.tf} · Hull=${w.a} BW=${w.c}${w.sl?' SL'+w.sl+'%':''}`:`UT · ${w.tf} · a=${w.a} ATR=${w.c}${w.sl?' SL'+w.sl+'%':''}`;
+    const line2=!r?'…':(isH?`Hull: <b>${fmt(r.hull)}</b> · Ядро: <b>${fmt(r.ker)}</b>`:`Стоп: <b>${fmt(r.stop)}</b> · ATR: <b>${fmt(r.atr)}</b>`);
     return `<div class="card ${r?r.regime:''} ${w.fresh?'fresh':''}">
       <button class="del" data-i="${i}" title="Убрать">✕</button>
-      <h3>${w.sym.toUpperCase()}<small>${w.ex.toUpperCase()} · ${w.tf} · a=${w.a} ATR=${w.c}${w.sl?' SL'+w.sl+'%':''}</small></h3>
+      <h3>${w.sym.toUpperCase()}<small>${w.ex.toUpperCase()} · ${params}</small></h3>
       <div class="state ${st}">${stateTxt}</div>
-      <div class="kv">Цена: <b>${r?fmt(r.price):'…'}</b> · Стоп: <b>${r?fmt(r.stop):'…'}</b><br>
-      ATR: <b>${r?fmt(r.atr):'…'}</b> · Посл. сигнал: <b>${sig}</b><br>
-      Проверено: <b>${w.checked||'—'}</b></div>
+      <div class="kv">Цена: <b>${r?fmt(r.price):'…'}</b><br>
+      ${line2}<br>
+      Посл. сигнал: <b>${sig}</b> · Проверено: <b>${w.checked||'—'}</b></div>
       ${w.err?`<div class="err">⚠ ${w.err}</div>`:''}
     </div>`;
   }).join('');
@@ -207,7 +265,7 @@ async function checkOne(w){
     let n=K.c.length;
     if(K.t[n-1]+TF[w.tf].sec>now+5) n--;
     const Kc={h:K.h.slice(0,n),l:K.l.slice(0,n),c:K.c.slice(0,n)};
-    const r=utbot(Kc,w.a,w.c);
+    const r=w.eng==='hull'? hullState(Kc,w.a,w.c,w.gap||3) : utbot(Kc,w.a,w.c);
     r.price=Kc.c[n-1];
     r.barsAgo=r.lastSigI>=0? n-1-r.lastSigI : null;
     const barT=K.t[n-1];
@@ -215,8 +273,10 @@ async function checkOne(w){
     // новый сигнал на последней закрытой свече?
     if(r.lastSig&&r.barsAgo===0&&w.lastAlertBar!==barT){
       w.lastAlertBar=barT; w.fresh=true;
-      beep(); notify(`UT Bot: ${r.lastSig} ${w.sym.toUpperCase()} ${w.tf}`,`цена ${fmt(r.price)}, стоп ${fmt(r.stop)}`);
-      logLine(`СИГНАЛ ${r.lastSig} — ${w.sym.toUpperCase()} ${w.tf} @ ${fmt(r.price)}`,true);
+      const engName=w.eng==='hull'?'H+K':'UT Bot';
+      const detail=w.eng==='hull'?`цена ${fmt(r.price)}, Hull ${fmt(r.hull)}`:`цена ${fmt(r.price)}, стоп ${fmt(r.stop)}`;
+      beep(); notify(`${engName}: ${r.lastSig} ${w.sym.toUpperCase()} ${w.tf}`,detail);
+      logLine(`СИГНАЛ ${r.lastSig} [${engName}] — ${w.sym.toUpperCase()} ${w.tf} @ ${fmt(r.price)}`,true);
       setTimeout(()=>{w.fresh=false;render();},9000);
     }
     w.res=r; w.checked=new Date().toLocaleTimeString('ru-RU');
@@ -237,7 +297,7 @@ $('startBtn').onclick=()=>{
 $('addBtn').onclick=()=>{
   const sym=$('fSym').value.trim();
   if(!sym)return;
-  watchers.push({ex:$('fEx').value,sym,tf:$('fTf').value,a:+$('fA').value||1,c:+$('fC').value||10,sl:+$('fSl').value||0});
+  watchers.push({ex:$('fEx').value,eng:$('fEng').value,sym,tf:$('fTf').value,a:+$('fA').value||1,c:+$('fC').value||10,sl:+$('fSl').value||0,gap:+$('fGap').value||3});
   $('fSym').value=''; save(); render();
 };
 render();
