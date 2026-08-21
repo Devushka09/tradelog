@@ -742,8 +742,8 @@
       <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
         <label style="font-size:9px;color:var(--text3);letter-spacing:1px;text-transform:uppercase">Сортировка:</label>
         <select id="sort-select" onchange="changeSort(this.value)" style="width:auto;font-size:11px;padding:5px 8px">
-          <option value="num-desc">Сначала новые (№)</option>
-          <option value="num-asc">Сначала старые (№)</option>
+          <option value="num-desc">Сначала новые (по дате)</option>
+          <option value="num-asc">Сначала старые (по дате)</option>
           <option value="date-desc">Дата закрытия ↓ (новые)</option>
           <option value="date-asc">Дата закрытия ↑ (старые)</option>
           <option value="coin-asc">По алфавиту А→Я</option>
@@ -784,11 +784,11 @@
         </div>
         <div class="form-group">
           <label>Дата открытия</label>
-          <input type="date" id="f-date-open">
+          <input type="date" id="f-date-open" oninput="updateFormDuration()">
         </div>
         <div class="form-group">
           <label>Время открытия</label>
-          <input type="time" id="f-time-open">
+          <input type="time" id="f-time-open" oninput="updateFormDuration()">
         </div>
         <div class="form-group">
           <label>Плечо (x)</label>
@@ -861,7 +861,13 @@
         </div>
         <div class="form-group">
           <label>Дата закрытия</label>
-          <input type="date" id="f-date-close">
+          <input type="date" id="f-date-close" oninput="updateFormDuration()">
+        </div>
+      </div>
+      <div class="form-grid col-2" style="margin-top:-4px;margin-bottom:6px">
+        <div class="form-group">
+          <label>Длительность сделки (авто)</label>
+          <div id="form-duration" style="padding:8px 10px;background:var(--surface3);border-radius:6px;font-size:12px;color:var(--text3);">—</div>
         </div>
       </div>
       <div id="exits-section">
@@ -1539,6 +1545,25 @@ function getTPs() {
   });
 }
 
+function updateFormDuration() {
+  const el = document.getElementById('form-duration');
+  if (!el) return;
+  const dOpen = document.getElementById('f-date-open')?.value;
+  const tOpen = document.getElementById('f-time-open')?.value || '00:00';
+  const dClose = document.getElementById('f-date-close')?.value;
+  if (!dOpen || !dClose) { el.textContent = '—'; el.style.color = 'var(--text3)'; return; }
+  const open = new Date(`${dOpen}T${tOpen}`);
+  const close = new Date(`${dClose}T23:59`);
+  const h = (close - open) / 3600000;
+  if (h < 0) { el.textContent = 'дата закрытия раньше открытия'; el.style.color = 'var(--red)'; return; }
+  let txt;
+  if (h < 1) txt = `${Math.round(h*60)} мин`;
+  else if (h < 24) txt = `${h.toFixed(1)} ч`;
+  else txt = `${(h/24).toFixed(1)} дн (${Math.round(h)} ч)`;
+  el.textContent = txt;
+  el.style.color = 'var(--text)';
+}
+
 function recalcPnl() {
   const entries = getEntries();
   const exits = getExits();
@@ -1760,10 +1785,11 @@ function renderTrades() {
   }
 
   // Sorting
+  const chronoKey = t => `${t.dateOpen||'9999'}T${t.timeOpen||'00:00'}`;
   filtered = [...filtered].sort((a, b) => {
     switch (currentSort) {
-      case 'num-asc':  return trades.indexOf(a) - trades.indexOf(b);
-      case 'num-desc': return trades.indexOf(b) - trades.indexOf(a);
+      case 'num-asc':  return chronoKey(a).localeCompare(chronoKey(b));
+      case 'num-desc': return chronoKey(b).localeCompare(chronoKey(a));
       case 'date-asc':  return (a.dateClose||'').localeCompare(b.dateClose||'');
       case 'date-desc': return (b.dateClose||'').localeCompare(a.dateClose||'');
       case 'coin-asc':  return (a.coin||'').localeCompare(b.coin||'');
@@ -1779,9 +1805,17 @@ function renderTrades() {
     return;
   }
 
-  const tradeNum = trades.length;
+  // Нумерация по дате открытия: #1 = самая ранняя сделка
+  const chronoSorted = [...trades].sort((a,b) => {
+    const da = `${a.dateOpen||'9999'}T${a.timeOpen||'00:00'}`;
+    const db = `${b.dateOpen||'9999'}T${b.timeOpen||'00:00'}`;
+    return da.localeCompare(db);
+  });
+  const numMap = new Map();
+  chronoSorted.forEach((t, i) => numMap.set(t.id, i + 1));
+
   container.innerHTML = filtered.map((t, i) => {
-    const num = trades.indexOf(t) + 1;
+    const num = numMap.get(t.id) || (trades.indexOf(t) + 1);
     const statusClass = t.status === 'open' ? 'open' : t.pnl > 0 ? 'profit' : 'loss';
     const pnlClass = t.status === 'open' ? 'open' : t.pnl > 0 ? 'pos' : 'neg';
     const pnlTxt = t.status === 'open' ? 'Открыта' : `${t.pnl >= 0 ? '+' : ''}$${t.pnl.toFixed(2)}`;
@@ -1985,6 +2019,7 @@ function editTrade(id) {
     });
 
     recalcPnl();
+    updateFormDuration();
   }, 50);
 }
 
